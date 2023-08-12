@@ -7,34 +7,50 @@ load_dotenv(find_dotenv())
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
 
-def main():
-    user_input = input("Ask a question: ")
-    prompt_context = json_to_dict('menu.json')
-    output = get_response(prompt_context, user_input)
-    print(output)
+class AIAssistant:
+    _chat_holder = []  # list of dictionary objects to keep track of chat history
 
-# converts json file to a dictionary for use in setting context for the gpt model
-def json_to_dict(file_name: str) -> dict:
-    with open(file_name) as json_info:
-        data = json.load(json_info)
-    return data
+    def __init__(self):
+        self._chat_holder = []
 
+    def _add_to_chat_history(self, input_role: str, input_msg: str) -> None:
+        self._chat_holder.append({'role': input_role, 'content': input_msg})
 
-def get_response(context_prompt: dict, user_prompt: str) -> str:
-    response = openai.ChatCompletion.create(
-        model='gpt-3.5-turbo',
-        messages=[
-            {'role': 'system', 'content': 'You are an online assistant designed to help a customer at a brewery.'},
-            {'role': 'system', 'content': f'This is our menu: \'\'\'{context_prompt}\'\'\''},
-            {'role': 'user', 'content': f'{user_prompt}'},
-            {'role': 'user', 'content': 'Return concise answer to user prompt.'}
-        ],
-        max_tokens=128
-    )
-    print(response['usage'])
-    response = response['choices'][0]['message']['content']
-    return response
+    # def main():
+    #     user_input = input("Ask a question: ")
+    #     prompt_context = json_to_dict('menu.json')
+    #     output = get_response(prompt_context, user_input)
+    #     print(output)
 
+    # converts json file to a dictionary for use in setting context for the gpt model
+    def _json_to_dict(self, file_name: str) -> dict:
+        with open(file_name) as json_info:
+            data = json.load(json_info)
+        return data
 
-if __name__ == "__main__":
-    main()
+    def get_response(self, user_prompt: str) -> str:
+        background_context = self._json_to_dict('menu.json')
+        self._add_to_chat_history('user', user_prompt)
+        response = openai.ChatCompletion.create(
+            model='gpt-3.5-turbo',
+            # messages=[
+            #     # TODO: uncomment the two system lines when done messing around
+            #     # {'role': 'system', 'content': 'You are an online assistant designed to help a customer at a brewery.'},
+            #     # {'role': 'system', 'content': f'This is our menu: \'\'\'{context_prompt}\'\'\''},
+            #     {'role': 'user', 'content': f'{self}'},
+            #     # {'role': 'user', 'content': 'Return concise answer to user prompt.'}
+            # ],
+            messages=[chat for chat in self._chat_holder],
+            max_tokens=128
+        )
+        response = response['choices'][0]['message']['content']
+        self._add_to_chat_history('system', response)
+        # print(response['usage'])
+
+        return response
+
+    def print_chat_history(self) -> None:
+        print("------------------------------------")
+        for chat in self._chat_holder:
+            print(chat)
+        print("------------------------------------")
