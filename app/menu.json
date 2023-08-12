@@ -24,18 +24,6 @@
         "price": 6.00,
         "description": "A sweet pastry stout with marshmallow (trace egg whites), chocolate, and graham crackers."
         },
-    "Fifth Layer" : {
-        "ABV": 5.0,
-        "beerType": "session IPA",
-        "price": 5.00,
-        "description": "A NE Session IPA, double dry hopped with Citra, Nelson, and Simcoe hops."
-        },
-    "Polymorphic" : {
-        "ABV": 8.3,
-        "beerType": "double IPA",
-        "price": 5.50,
-        "description": "A hazy double IPA, kettle and dry hopped with Citra, Motueka, and Cascade hops."
-        },
     "Perpetual Belgian Triple" : {
         "ABV": 9.2,
         "beerType": "abbey style triple",
@@ -55,11 +43,6 @@
         "price": 6.00,
         "description": "Fresh fried tortillas loaded with  pepper jack cheese, peppers, onions, corn, black beans, choice of meat, cilantro and scallions. Served with lime sour cream and roasted tomato salsa.",
         "Options": ["Gluten Free", "Vegetarian", "Vegan"]
-      },
-      "Jumbo Pretzel" : {
-        "price": 6.00,
-        "description": "Locally made XL soft pretzel by eastern standard provisions. Served with beer mustard. Choice of pretzel salt or everything bagel seasoning.",
-        "Options": ["Vegan"]
       }
     },
     "salads": {
@@ -88,12 +71,6 @@
         "description": "6oz certified angus smash patty, homemade spam, seared pineapple, teriyaki, cheddar, garlic aioli on a potato bun.",
         "Options": ["Gluten Free"],
         "Add Ons": {}
-      },
-      "Hangover Burger": {
-        "price": 17.00,
-        "description": "6oz certified angus smash patty, hash brown, griddled bologna, american cheese, sunny side egg, jalapeno ketchup on a potato bun.",
-        "Options": ["Gluten Free"],
-        "Add Ons": {"Cheese" : 2.00}
       }
     }
   }
