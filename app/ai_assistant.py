@@ -1,5 +1,6 @@
 import os
 from dotenv import load_dotenv, find_dotenv
+import json
 import openai
 
 load_dotenv(find_dotenv())
@@ -12,6 +13,11 @@ def main():
     print(output)
     pass
 
+# converts json file to a dictionary for use in setting context for the gpt model
+def json_to_dict(file_name: str) -> dict:
+    with open(file_name) as json_info:
+        data = json.load(json_info)
+    return data
 
 def get_response(prompt: str) -> str:
     response = openai.ChatCompletion.create(
