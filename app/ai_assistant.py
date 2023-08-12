@@ -15,6 +15,21 @@ class AIAssistant:
 
     def _add_to_chat_history(self, input_role: str, input_msg: str) -> None:
         self._chat_holder.append({'role': input_role, 'content': input_msg})
+        self.prune_chat_history()
+
+    def prune_chat_history(self) -> None:
+        if len(self._chat_holder) > 6:
+            response = openai.ChatCompletion.create(
+                model='gpt-3.5-turbo',
+                messages=[
+                    self._chat_holder.pop(0),
+                    self._chat_holder.pop(0),
+                    {'role': 'user', 'content': 'Summarize the above chat in 120 words or less.'},
+                ],
+                max_tokens=1000
+            )
+            response = response['choices'][0]['message']['content']
+            self._chat_holder.insert(0, {'role': 'system', 'content': f'Previous chat summary: {response}'})
 
     # def main():
     #     user_input = input("Ask a question: ")
@@ -43,10 +58,9 @@ class AIAssistant:
             messages=[chat for chat in self._chat_holder],
             max_tokens=128
         )
+        print(response['usage'])
         response = response['choices'][0]['message']['content']
         self._add_to_chat_history('system', response)
-        # print(response['usage'])
-
         return response
 
     def print_chat_history(self) -> None:
