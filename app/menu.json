@@ -1,0 +1,100 @@
+{
+  "beer menu": {
+    "Pineapple Mango Bitstream" : {
+        "ABV": 5.5,
+        "beerType": "seltzer",
+        "price": 5.00,
+        "description": "Hard seltzer, fruited with pineapple and mango."
+        },
+    "Quantum Wake" : {
+        "ABV": 8.3,
+        "beerType": "double IPA",
+        "price": 5.50,
+        "description": "Double IPA, hopped with Citra, Ella, and Azacca hops."
+        },
+    "Spatial Proximity" : {
+        "ABV": 8.0,
+        "beerType": "double IPA",
+        "price": 5.50,
+        "description": "A Double IPA, double dry hopped with Citra, Motueka, Mosaic, and Idaho gem hops."
+        },
+    "Quantum Eraser" : {
+        "ABV": 10.0,
+        "beerType": "stout",
+        "price": 6.00,
+        "description": "A sweet pastry stout with marshmallow (trace egg whites), chocolate, and graham crackers."
+        },
+    "Fifth Layer" : {
+        "ABV": 5.0,
+        "beerType": "session IPA",
+        "price": 5.00,
+        "description": "A NE Session IPA, double dry hopped with Citra, Nelson, and Simcoe hops."
+        },
+    "Polymorphic" : {
+        "ABV": 8.3,
+        "beerType": "double IPA",
+        "price": 5.50,
+        "description": "A hazy double IPA, kettle and dry hopped with Citra, Motueka, and Cascade hops."
+        },
+    "Perpetual Belgian Triple" : {
+        "ABV": 9.2,
+        "beerType": "abbey style triple",
+        "price": 6.00,
+        "description": "A Belgian Abbey Triple, made with Belgian malts, blonde candi syrup, and Saaz and Tettnang hops."
+        }
+  },
+  "food menu": {
+    "appetizers": {
+      "Wings" : {
+        "price": 15.00,
+        "description": "6 jumbo wings cooked extra crispy served with your choice of sauce (or plain).",
+        "Sauces": ["Buffalo", "Garlic Parmesan", "BBQ", "Sweet Chili"],
+        "Options": ["Gluten Free"]
+      },
+      "Nachos" : {
+        "price": 6.00,
+        "description": "Fresh fried tortillas loaded with  pepper jack cheese, peppers, onions, corn, black beans, choice of meat, cilantro and scallions. Served with lime sour cream and roasted tomato salsa.",
+        "Options": ["Gluten Free", "Vegetarian", "Vegan"]
+      },
+      "Jumbo Pretzel" : {
+        "price": 6.00,
+        "description": "Locally made XL soft pretzel by eastern standard provisions. Served with beer mustard. Choice of pretzel salt or everything bagel seasoning.",
+        "Options": ["Vegan"]
+      }
+    },
+    "salads": {
+      "Mediterranean Salad" : {
+        "price": 13.00,
+        "description": "Arugula, cucumber, pickled onion, marinated tomatoes, tossed in Italian dressing topped with flatbread croutons and shaved pecorino cheese.",
+        "Options": ["Gluten Free", "Vegetarian"],
+        "Add Ons": {"Falafel" : 3.00}
+      },
+      "Caesar Salad" : {
+        "price": 12.00,
+        "description": "Iceburg lettuce, corn, beans, peppers, and pickled onions, tossed in a cilantro lime vinaigrette. Topped with tofu chorizo, and crunchy tortillas.",
+        "Options": ["Gluten Free", "Vegetarian"],
+        "Add Ons": {"Cheese" : 2.00}
+      }
+    },
+    "hamburgers": {
+      "Classic American Burger": {
+        "price": 15.00,
+        "description": "6oz certified angus smash patty, American cheese, shredded lettuce, burger sauce, thinly sliced onion, pickles on a potato bun.",
+        "Options": ["Gluten Free"],
+        "Add Ons": {"Bacon" : 2.00, "Egg" : 2.00, "Extra Patty" : 5.00}
+      },
+      "Hawaii Burger": {
+        "price": 17.00,
+        "description": "6oz certified angus smash patty, homemade spam, seared pineapple, teriyaki, cheddar, garlic aioli on a potato bun.",
+        "Options": ["Gluten Free"],
+        "Add Ons": {}
+      },
+      "Hangover Burger": {
+        "price": 17.00,
+        "description": "6oz certified angus smash patty, hash brown, griddled bologna, american cheese, sunny side egg, jalapeno ketchup on a potato bun.",
+        "Options": ["Gluten Free"],
+        "Add Ons": {"Cheese" : 2.00}
+      }
+    }
+  }
+}
