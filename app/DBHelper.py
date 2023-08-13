@@ -65,6 +65,18 @@ class DBHandler:
         output = dumps(output)
         return output
 
+    def read_example_order(self) -> str | None:
+        """
+        Returns the example order document so that you can prompt chatGPT with order format.
+        :return: string of the example order.
+        """
+        output = self.db.orders.find_one({"name": "EXAMPLE_ORDER"}, {"_id": 0})
+        if output is None:
+            return None
+        output = dumps(output)
+        print(type(output))
+        return output
+
     def get_all_field_names(self, collection_name) -> List[str]:
         """
         Returns a list of all field names in a collection.
