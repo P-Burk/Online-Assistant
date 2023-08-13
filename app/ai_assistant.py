@@ -84,16 +84,61 @@ class AIAssistant:
         for chat in self._chat_holder:
             print(chat)
         print("------------------------------------")
-########################################################################################################################
-# The following functions are for the order processing section of the AI assistant.
-########################################################################################################################
 
+    ########################################################################################################################
+    # The following functions are for the order processing section of the AI assistant.
+    ########################################################################################################################
 
+    def make_order(self, user_name: str, user_phone: str, user_email: str, order_type: str, del_add: str,
+                   del_inst: str, pay_method: str, order_items: List[dict]):
 
+        order = {
+            "name": user_name,
+            "phone": user_phone,
+            "email": user_email,
+            "order_type": order_type,
+            "delivery_address": del_add,
+            "delivery_instructions": del_inst,
+            "payment_method": pay_method,
+            "items": order_items
+        }
+        self._db_helper.insert_order(order)
 
-########################################################################################################################
-# The following functions are for the general questions section of the AI assistant.
-########################################################################################################################
+        '''
+        # Order example
+        order_example = {
+            "name": "Billy",
+            "phone": "555-555-5555",
+            "email": "billybob@email.com",
+            "order_type": "pickup",
+            "delivery_address": None,
+            "delivery_instructions": None,
+            "items": [
+                {
+                    "name": "Mozzarella Sticks",
+                    "quantity": 1,
+                    "extra_options": [
+                        {
+                            "name": "Ranch Dressing",
+                            "price": 1.5
+                        }
+                    ],
+                    "dietary_options": None,
+                    "price": 7.0
+                },
+                {
+                    "name": "Hopzilla",
+                    "price": 5.0
+                }
+            ],
+            "payment_method": "cash",
+            "order_total": 13.5
+        }
+        '''
+
+    ########################################################################################################################
+    # The following functions are for the general questions section of the AI assistant.
+    ########################################################################################################################
 
     # Classifies the question and returns the classification.
     # Classification is based on fields found in the FAQ collection.
