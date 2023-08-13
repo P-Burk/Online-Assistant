@@ -3,6 +3,7 @@ from typing import List
 from dotenv import load_dotenv, find_dotenv
 import json
 import openai
+from app import DBHelper
 
 load_dotenv(find_dotenv())
 openai.api_key = os.getenv("OPENAI_API_KEY")
@@ -10,11 +11,27 @@ openai.api_key = os.getenv("OPENAI_API_KEY")
 
 class AIAssistant:
     _SUMMARY_LENGTH = 150
-    _CHAT_HISTORY_LENGTH = 6    # making this too high results in slower response and more token usage
+    _CHAT_HISTORY_LENGTH = 6  # making this too high results in slower response and more token usage
+    _FUNCTIONS = [
+        {
+            "name": "get_business_info",
+            "description": "Gets information from a database with information about the business based on the question classification.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "question_classification": {
+                        "type": "string",
+                        "description": " The general classification of the question. For example, if the question is 'What are your hours?', the question classification would be 'hours'."
+                    }
+                }
+            }
+        }
+    ]
 
     def __init__(self):
         self._chat_holder: List[dict] = []
-        pass
+        self._db_helper = DBHelper.DBHandler()
+        self._general_question_classifications = self._db_helper.get_all_field_names("FAQ")
 
     def _add_to_chat_history(self, input_role: str, input_msg: str) -> None:
         self._chat_holder.append({'role': input_role, 'content': input_msg})
@@ -28,18 +45,13 @@ class AIAssistant:
                     self._chat_holder.pop(0),
                     self._chat_holder.pop(0),
                     self._chat_holder.pop(0),
-                    {'role': 'user', 'content': f'Summarize the main facts in the above chat in {self._SUMMARY_LENGTH} words or less.'},
+                    {'role': 'user',
+                     'content': f'Summarize the main facts in the above chat in {self._SUMMARY_LENGTH} words or less.'},
                 ],
                 max_tokens=1000
             )
             response = response['choices'][0]['message']['content']
             self._chat_holder.insert(0, {'role': 'system', 'content': f'Previous chat summary: {response}'})
-
-    # def main():
-    #     user_input = input("Ask a question: ")
-    #     prompt_context = json_to_dict('menu.json')
-    #     output = get_response(prompt_context, user_input)
-    #     print(output)
 
     # converts json file to a dictionary for use in setting context for the gpt model
     def _json_to_dict(self, file_name: str) -> dict:
@@ -72,3 +84,52 @@ class AIAssistant:
         for chat in self._chat_holder:
             print(chat)
         print("------------------------------------")
+
+    # Classifies the question and returns the classification.
+    # Classification is based on fields found in the FAQ collection.
+    def __get_general_question_classification(self, user_prompt: str) -> str:
+        response = openai.ChatCompletion.create(
+            model='gpt-3.5-turbo-0613',
+            messages=[
+                {'role': 'system',
+                 'content': f'Determine the classification of the following question and choose '
+                            f'from {self._general_question_classifications} or NONE'},
+                {'role': 'user', 'content': f'{user_prompt}'},
+            ],
+            max_tokens=500
+        )
+        response = response['choices'][0]['message']['content']
+        print("Classification: " + response)
+        return response
+
+    def general_questions(self, user_prompt: str) -> str:
+        self._add_to_chat_history('user', user_prompt)
+        prompt_classification = self.__get_general_question_classification(user_prompt)
+        if prompt_classification == "NONE":
+            message = [
+                {'role': 'system',
+                 'content': f'Inform the customer to please call the brewery 555-987-6543 or reach out on social media/email to get an answer to their question.'},
+                {'role': 'system', 'content': 'Return a concise answer to the user prompt.'},
+                {'role': 'system',
+                 'content': 'If the user prompt is not answered, ask the user to rephrase their question or contact the brewery directly.'},
+                {'role': 'user', 'content': f'{user_prompt}'}
+            ]
+        else:
+            context = self._db_helper.read_all(prompt_classification, "FAQ")
+            message = [
+                {'role': 'system', 'content': f'The following is information about the brewery: {context}.'},
+                {'role': 'system', 'content': 'Return a concise answer to the user prompt.'},
+                {'role': 'system',
+                 'content': 'If the user prompt is not answered, ask the user to rephrase their question or contact the brewery directly.'},
+                {'role': 'user', 'content': f'{user_prompt}'}
+            ]
+        response = openai.ChatCompletion.create(
+            model='gpt-3.5-turbo-0613',
+            messages=message,
+            max_tokens=500
+        )
+        print(response['usage'])
+        response = response['choices'][0]['message']['content']
+        self._add_to_chat_history('system', response)
+        self.print_chat_history()
+        return response
