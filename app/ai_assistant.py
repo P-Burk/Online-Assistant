@@ -84,6 +84,16 @@ class AIAssistant:
         for chat in self._chat_holder:
             print(chat)
         print("------------------------------------")
+########################################################################################################################
+# The following functions are for the order processing section of the AI assistant.
+########################################################################################################################
+
+
+
+
+########################################################################################################################
+# The following functions are for the general questions section of the AI assistant.
+########################################################################################################################
 
     # Classifies the question and returns the classification.
     # Classification is based on fields found in the FAQ collection.
@@ -102,6 +112,7 @@ class AIAssistant:
         print("Classification: " + response)
         return response
 
+    # Returns a response to a general question.
     def general_questions(self, user_prompt: str) -> str:
         self._add_to_chat_history('user', user_prompt)
         prompt_classification = self.__get_general_question_classification(user_prompt)
