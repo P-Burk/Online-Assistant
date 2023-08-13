@@ -1,4 +1,5 @@
 import os
+from typing import List
 from dotenv import load_dotenv, find_dotenv
 import json
 import openai
@@ -8,23 +9,26 @@ openai.api_key = os.getenv("OPENAI_API_KEY")
 
 
 class AIAssistant:
-    _chat_holder = []  # list of dictionary objects to keep track of chat history
+    _SUMMARY_LENGTH = 150
+    _CHAT_HISTORY_LENGTH = 6    # making this too high results in slower response and more token usage
 
     def __init__(self):
-        self._chat_holder = []
+        self._chat_holder: List[dict] = []
+        pass
 
     def _add_to_chat_history(self, input_role: str, input_msg: str) -> None:
         self._chat_holder.append({'role': input_role, 'content': input_msg})
-        self.prune_chat_history()
+        self._prune_chat_history()
 
-    def prune_chat_history(self) -> None:
-        if len(self._chat_holder) > 6:
+    def _prune_chat_history(self) -> None:
+        if len(self._chat_holder) > self._CHAT_HISTORY_LENGTH:
             response = openai.ChatCompletion.create(
                 model='gpt-3.5-turbo',
                 messages=[
                     self._chat_holder.pop(0),
                     self._chat_holder.pop(0),
-                    {'role': 'user', 'content': 'Summarize the above chat in 120 words or less.'},
+                    self._chat_holder.pop(0),
+                    {'role': 'user', 'content': f'Summarize the main facts in the above chat in {self._SUMMARY_LENGTH} words or less.'},
                 ],
                 max_tokens=1000
             )
