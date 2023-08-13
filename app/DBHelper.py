@@ -65,18 +65,6 @@ class DBHandler:
         output = dumps(output)
         return output
 
-    def read_example_order(self) -> str | None:
-        """
-        Returns the example order document so that you can prompt chatGPT with order format.
-        :return: string of the example order.
-        """
-        output = self.db.orders.find_one({"name": "EXAMPLE_ORDER"}, {"_id": 0})
-        if output is None:
-            return None
-        output = dumps(output)
-        print(type(output))
-        return output
-
     def get_all_field_names(self, collection_name) -> List[str]:
         """
         Returns a list of all field names in a collection.
@@ -92,16 +80,28 @@ class DBHandler:
         field_names.remove("_id")
         return field_names
 
-    # def insert_order(self, query: dict):
-    #     """
-    #     Inserts a single document into the orders collection.
-    #     :param query: dictionary of content to add to the database.
-    #     """
-    #     try:
-    #         self.db.orders.insert_one(query)
-    #     except Exception as error:
-    #         print(error)
-    #         print("Failed to add order to database.")
+    def read_example_order(self) -> str | None:
+        """
+        Returns the example order document so that you can prompt chatGPT with order format.
+        :return: string of the example order.
+        """
+        output = self.db.orders.find_one({"name": "EXAMPLE_ORDER"}, {"_id": 0})
+        if output is None:
+            return None
+        output = dumps(output)
+        print(type(output))
+        return output
+
+    def insert_order(self, query: dict):
+        """
+        Inserts a single document into the orders collection.
+        :param query: dictionary of content to add to the database.
+        """
+        try:
+            self.db.orders.insert_one(query)
+        except Exception as error:
+            print(error)
+            print("Failed to add order to database.")
 
     # def update_orders(self, query: dict, update_data: dict, multiple_orders: bool) -> None | object:
     #     """
