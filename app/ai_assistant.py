@@ -168,6 +168,30 @@ class AIAssistant:
     # The following functions are for the order processing section of the AI assistant.
     ########################################################################################################################
 
+    def order_convo(self, user_prompt: str) -> str:
+        self._add_to_chat_history('user', user_prompt)
+        print("Before chat call")
+        context_messages = [chat for chat in self._chat_holder]
+        context_messages = context_messages + [
+            {'role': 'system', 'content': 'You are an online assistant designed to help a customer at a brewery.'},
+            {'role': 'system',
+             'content': 'Ask the user for order details starting with name, phone number, and email address. '
+                        'After that, ask for the order type (pickup or delivery). '
+                        'If the order type is delivery, ask for the delivery address and delivery instructions. '
+                        'Next, ask for the items in the order. '
+                        'Once you have all the order details, ask the user to confirm the order.'
+                        'If the order is confirmed, ask for the payment method (cash or credit card). '},
+            {'role': 'user', 'content': f'{user_prompt}'}
+        ]
+        response = openai.ChatCompletion.create(
+            model='gpt-3.5-turbo-0613',
+            messages=context_messages,
+            functions=self._FUNCTIONS,
+            function_call="auto",
+        )
+        self._add_to_chat_history('system', response)
+        return response
+
     def make_order(self, user_name: str, user_phone: str, user_email: str, order_type: str, del_add: str,
                    del_inst: str, pay_method: str, order_items: List[dict]):
 
