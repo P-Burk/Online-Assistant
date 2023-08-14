@@ -103,6 +103,19 @@ class DBHandler:
             print(error)
             print("Failed to add order to database.")
 
+    def get_menu(self):
+        query = {
+            "$and": [
+                {"beer_menu": {"$exists": True}},
+                {"food_menu": {"$exists": True}}
+            ]
+        }
+        result = self.db.get_collection("menu").find(query, {"_id": 0})
+        if result is None:
+            return None
+        output = dumps(result)
+        return output
+
     # def update_orders(self, query: dict, update_data: dict, multiple_orders: bool) -> None | object:
     #     """
     #     Updates one or many orders.
