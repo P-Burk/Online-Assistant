@@ -10,24 +10,25 @@ openai.api_key = os.getenv("OPENAI_API_KEY")
 
 
 class AIAssistant:
+    _MODEL = 'gpt-3.5-turbo'
     _SUMMARY_LENGTH = 150
-    _CHAT_HISTORY_LENGTH = 6  # making this too high results in slower response and more token usage
+    _CHAT_HISTORY_LENGTH = 15  # making this too high results in slower response and more token usage
     _FUNCTIONS = [
         {
-            "name": "create_order",
+            "name": "make_order",
             "description": "Create a new order for a restaurant.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "name": {
+                    "user_name": {
                         "type": "string",
                         "description": "Customer's name."
                     },
-                    "phone": {
+                    "user_phone": {
                         "type": "string",
                         "description": "Customer's phone number."
                     },
-                    "email": {
+                    "user_email": {
                         "type": "string",
                         "format": "email",
                         "description": "Customer's email address."
@@ -45,16 +46,16 @@ class AIAssistant:
                         "type": "string",
                         "description": "Special instructions for delivery."
                     },
-                    "items": {
+                    "order_items": {
                         "type": "array",
                         "items": {
                             "type": "object",
                             "properties": {
-                                "name": {
+                                "item_name": {
                                     "type": "string",
                                     "description": "Item name."
                                 },
-                                "quantity": {
+                                "item_quantity": {
                                     "type": "integer",
                                     "minimum": 1,
                                     "description": "Item quantity."
@@ -70,7 +71,7 @@ class AIAssistant:
                                             },
                                             "price": {
                                                 "type": "number",
-                                                "description": "Extra option price."
+                                                "description": "Extra option price. Multiply this by the quanitiy of the item to get the total price for the extra option."
                                             }
                                         }
                                     },
@@ -83,9 +84,9 @@ class AIAssistant:
                                     },
                                     "description": "Dietary options for the item."
                                 },
-                                "price": {
+                                "item_price": {
                                     "type": "number",
-                                    "description": "Item price."
+                                    "description": "Item price. Multiply this by the quantity to get the total price for the item."
                                 }
                             },
                             "required": ["name", "quantity", "price"]
@@ -102,7 +103,8 @@ class AIAssistant:
                         "description": "Total amount for the order."
                     }
                 },
-                "required": ["name", "phone", "email", "order_type", "items", "payment_method", "order_total"]
+                "required": ["name", "phone", "email", "order_type", "delivery_address", "delivery_instructions",
+                             "order_items", "payment_method", "order_total"]
             }
         }
     ]
@@ -119,7 +121,7 @@ class AIAssistant:
     def _prune_chat_history(self) -> None:
         if len(self._chat_holder) > self._CHAT_HISTORY_LENGTH:
             response = openai.ChatCompletion.create(
-                model='gpt-3.5-turbo',
+                model=self._MODEL,
                 messages=[
                     self._chat_holder.pop(0),
                     self._chat_holder.pop(0),
@@ -142,7 +144,7 @@ class AIAssistant:
         background_context = self._json_to_dict('menu.json')
         self._add_to_chat_history('user', user_prompt)
         response = openai.ChatCompletion.create(
-            model='gpt-3.5-turbo',
+            model=self._MODEL,
             # messages=[
             #     # TODO: uncomment the two system lines when done messing around
             #     # {'role': 'system', 'content': 'You are an online assistant designed to help a customer at a brewery.'},
@@ -168,76 +170,75 @@ class AIAssistant:
     # The following functions are for the order processing section of the AI assistant.
     ########################################################################################################################
 
+    def make_order(self, user_name: str, user_phone: str, user_email: str, order_type: str, delivery_address: str,
+                   delivery_instructions: str, order_items: List[dict], payment_method: str, order_total: float):
+        order = {
+            "user_name": user_name,
+            "user_phone": user_phone,
+            "user_email": user_email,
+            "order_type": order_type,
+            "delivery_address": delivery_address,
+            "delivery_instructions": delivery_instructions,
+            "order_items": order_items,
+            "payment_method": payment_method,
+            "order_total": order_total
+        }
+        self._db_helper.insert_order(order)
+
+    def _get_order_arguments(self, API_output: dict):
+        output = API_output['choices'][0]['message']['function_call']['arguments']
+        output = json.loads(output)
+        user_name = output['user_name']
+        user_phone = output['user_phone']
+        user_email = output['user_email']
+        order_type = output['order_type']
+        del_add = output['delivery_address']
+        del_inst = output['delivery_instructions']
+        items = output['items']
+        payment_method = output['payment_method']
+        order_total = output['order_total']
+        return user_name, user_phone, user_email, del_add, del_inst, order_type, items, payment_method, order_total
+
     def order_convo(self, user_prompt: str) -> str:
         self._add_to_chat_history('user', user_prompt)
         print("Before chat call")
-        context_messages = [chat for chat in self._chat_holder]
-        context_messages = context_messages + [
+        context_messages = [
             {'role': 'system', 'content': 'You are an online assistant designed to help a customer at a brewery.'},
-            {'role': 'system',
-             'content': 'Ask the user for order details starting with name, phone number, and email address. '
-                        'After that, ask for the order type (pickup or delivery). '
-                        'If the order type is delivery, ask for the delivery address and delivery instructions. '
-                        'Next, ask for the items in the order. '
-                        'Once you have all the order details, ask the user to confirm the order.'
-                        'If the order is confirmed, ask for the payment method (cash or credit card). '},
+            {'role': 'system', 'content': 'You need to ask the user for all of the information to make an order, but don\'t ask for information that the user has already provided.'
+                                          'Also, only ask for small chunks of information at a time.'},
+            {'role': 'system', 'content': f'Here is our menu: {self._db_helper.get_menu()}'},
+            {'role': 'system', 'content': 'Here is what has been said so far: '},
+        ] + [chat for chat in self._chat_holder] + [
+            {'role': 'system', 'content': 'Here is what the user just said: '},
             {'role': 'user', 'content': f'{user_prompt}'}
         ]
+        for chat in self._chat_holder:
+            print(chat)
         response = openai.ChatCompletion.create(
-            model='gpt-3.5-turbo-0613',
+            model=self._MODEL,
             messages=context_messages,
             functions=self._FUNCTIONS,
             function_call="auto",
         )
-        self._add_to_chat_history('system', response)
+        print(response)
+        # add response message to chat history if it is not None (None caused by function_call)
+        stripped_response = response['choices'][0]['message']['content']
+        if stripped_response is not None:
+            self._add_to_chat_history('system', stripped_response)
+            response = stripped_response
+        else:
+            # This is the branch if a function call is made
+            # if the response is a function call, then we need to have an output message for the user
+            params = json.loads(response['choices'][0]['message']['function_call']['arguments'])
+            chosen_function = eval("self." + response['choices'][0]['message']['function_call']['name'])
+            chosen_function(**params)
+            response = openai.ChatCompletion.create(
+                model=self._MODEL,
+                messages=[{'role': 'system', 'content': 'Tell the user that their order has been placed.'}]
+            )
+            response = response['choices'][0]['message']['content']
+            self._add_to_chat_history('system', response)
         return response
-
-    def make_order(self, user_name: str, user_phone: str, user_email: str, order_type: str, del_add: str,
-                   del_inst: str, pay_method: str, order_items: List[dict]):
-
-        order = {
-            "name": user_name,
-            "phone": user_phone,
-            "email": user_email,
-            "order_type": order_type,
-            "delivery_address": del_add,
-            "delivery_instructions": del_inst,
-            "payment_method": pay_method,
-            "items": order_items
-        }
-        self._db_helper.insert_order(order)
-
-        '''
-        # Order example
-        order_example = {
-            "name": "Billy",
-            "phone": "555-555-5555",
-            "email": "billybob@email.com",
-            "order_type": "pickup",
-            "delivery_address": None,
-            "delivery_instructions": None,
-            "items": [
-                {
-                    "name": "Mozzarella Sticks",
-                    "quantity": 1,
-                    "extra_options": [
-                        {
-                            "name": "Ranch Dressing",
-                            "price": 1.5
-                        }
-                    ],
-                    "dietary_options": None,
-                    "price": 7.0
-                },
-                {
-                    "name": "Hopzilla",
-                    "price": 5.0
-                }
-            ],
-            "payment_method": "cash",
-            "order_total": 13.5
-        }
-        '''
 
     ########################################################################################################################
     # The following functions are for the general questions section of the AI assistant.
@@ -247,7 +248,7 @@ class AIAssistant:
     # Classification is based on fields found in the FAQ collection.
     def __get_general_question_classification(self, user_prompt: str) -> str:
         response = openai.ChatCompletion.create(
-            model='gpt-3.5-turbo-0613',
+            model=self._MODEL,
             messages=[
                 {'role': 'system',
                  'content': f'Determine the classification of the following question and choose '
@@ -283,7 +284,7 @@ class AIAssistant:
                 {'role': 'user', 'content': f'{user_prompt}'}
             ]
         response = openai.ChatCompletion.create(
-            model='gpt-3.5-turbo-0613',
+            model=self._MODEL,
             messages=message,
             max_tokens=500
         )
