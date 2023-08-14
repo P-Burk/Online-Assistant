@@ -14,16 +14,95 @@ class AIAssistant:
     _CHAT_HISTORY_LENGTH = 6  # making this too high results in slower response and more token usage
     _FUNCTIONS = [
         {
-            "name": "get_business_info",
-            "description": "Gets information from a database with information about the business based on the question classification.",
+            "name": "create_order",
+            "description": "Create a new order for a restaurant.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "question_classification": {
+                    "name": {
                         "type": "string",
-                        "description": " The general classification of the question. For example, if the question is 'What are your hours?', the question classification would be 'hours'."
+                        "description": "Customer's name."
+                    },
+                    "phone": {
+                        "type": "string",
+                        "description": "Customer's phone number."
+                    },
+                    "email": {
+                        "type": "string",
+                        "format": "email",
+                        "description": "Customer's email address."
+                    },
+                    "order_type": {
+                        "type": "string",
+                        "enum": ["pickup", "delivery"],
+                        "description": "Type of order: pickup or delivery."
+                    },
+                    "delivery_address": {
+                        "type": "string",
+                        "description": "Delivery address if order type is delivery."
+                    },
+                    "delivery_instructions": {
+                        "type": "string",
+                        "description": "Special instructions for delivery."
+                    },
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "name": {
+                                    "type": "string",
+                                    "description": "Item name."
+                                },
+                                "quantity": {
+                                    "type": "integer",
+                                    "minimum": 1,
+                                    "description": "Item quantity."
+                                },
+                                "extra_options": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "name": {
+                                                "type": "string",
+                                                "description": "Extra option name."
+                                            },
+                                            "price": {
+                                                "type": "number",
+                                                "description": "Extra option price."
+                                            }
+                                        }
+                                    },
+                                    "description": "Additional options for the item."
+                                },
+                                "dietary_options": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    },
+                                    "description": "Dietary options for the item."
+                                },
+                                "price": {
+                                    "type": "number",
+                                    "description": "Item price."
+                                }
+                            },
+                            "required": ["name", "quantity", "price"]
+                        },
+                        "description": "List of items in the order."
+                    },
+                    "payment_method": {
+                        "type": "string",
+                        "enum": ["cash", "credit_card"],
+                        "description": "Payment method for the order."
+                    },
+                    "order_total": {
+                        "type": "number",
+                        "description": "Total amount for the order."
                     }
-                }
+                },
+                "required": ["name", "phone", "email", "order_type", "items", "payment_method", "order_total"]
             }
         }
     ]
