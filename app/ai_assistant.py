@@ -33,19 +33,6 @@ class AIAssistant:
                         "format": "email",
                         "description": "Customer's email address."
                     },
-                    "order_type": {
-                        "type": "string",
-                        "enum": ["pickup", "delivery"],
-                        "description": "Type of order: pickup or delivery."
-                    },
-                    "delivery_address": {
-                        "type": "string",
-                        "description": "Delivery address if order type is delivery."
-                    },
-                    "delivery_instructions": {
-                        "type": "string",
-                        "description": "Special instructions for delivery."
-                    },
                     "order_items": {
                         "type": "array",
                         "items": {
@@ -59,30 +46,6 @@ class AIAssistant:
                                     "type": "integer",
                                     "minimum": 1,
                                     "description": "Item quantity."
-                                },
-                                "extra_options": {
-                                    "type": "array",
-                                    "items": {
-                                        "type": "object",
-                                        "properties": {
-                                            "name": {
-                                                "type": "string",
-                                                "description": "Extra option name."
-                                            },
-                                            "price": {
-                                                "type": "number",
-                                                "description": "Extra option price. Multiply this by the quanitiy of the item to get the total price for the extra option."
-                                            }
-                                        }
-                                    },
-                                    "description": "Additional options for the item."
-                                },
-                                "dietary_options": {
-                                    "type": "array",
-                                    "items": {
-                                        "type": "string"
-                                    },
-                                    "description": "Dietary options for the item."
                                 },
                                 "item_price": {
                                     "type": "number",
@@ -103,8 +66,7 @@ class AIAssistant:
                         "description": "Total amount for the order."
                     }
                 },
-                "required": ["name", "phone", "email", "order_type", "delivery_address", "delivery_instructions",
-                             "order_items", "payment_method", "order_total"]
+                "required": ["user_name", "user_phone", "user_email", "order_items", "payment_method", "order_total"]
             }
         }
     ]
@@ -170,15 +132,12 @@ class AIAssistant:
     # The following functions are for the order processing section of the AI assistant.
     ########################################################################################################################
 
-    def make_order(self, user_name: str, user_phone: str, user_email: str, order_type: str, delivery_address: str,
-                   delivery_instructions: str, order_items: List[dict], payment_method: str, order_total: float):
+    def make_order(self, user_name: str, user_phone: str, user_email: str, order_items: List[dict],
+                   payment_method: str, order_total: float):
         order = {
             "user_name": user_name,
             "user_phone": user_phone,
             "user_email": user_email,
-            "order_type": order_type,
-            "delivery_address": delivery_address,
-            "delivery_instructions": delivery_instructions,
             "order_items": order_items,
             "payment_method": payment_method,
             "order_total": order_total
@@ -191,13 +150,10 @@ class AIAssistant:
         user_name = output['user_name']
         user_phone = output['user_phone']
         user_email = output['user_email']
-        order_type = output['order_type']
-        del_add = output['delivery_address']
-        del_inst = output['delivery_instructions']
         items = output['items']
         payment_method = output['payment_method']
         order_total = output['order_total']
-        return user_name, user_phone, user_email, del_add, del_inst, order_type, items, payment_method, order_total
+        return user_name, user_phone, user_email, items, payment_method, order_total
 
     def order_convo(self, user_prompt: str) -> str:
         self._add_to_chat_history('user', user_prompt)
