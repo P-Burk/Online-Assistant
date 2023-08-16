@@ -160,10 +160,14 @@ class AIAssistant:
         print("Before chat call")
         context_messages = [
             {'role': 'system', 'content': 'You are an online assistant designed to help a customer at a brewery.'},
-            {'role': 'system', 'content': 'You need to ask the user for all of the information to make an order, but don\'t ask for information that the user has already provided.'
+            {'role': 'system', 'content': 'You need to ask the user for all of the information to make an order, '
+                                          'but don\'t ask for information that the user has already provided.'
                                           'Also, only ask for small chunks of information at a time.'},
             {'role': 'system', 'content': f'Here is our menu: {self._db_helper.get_menu()}'},
-            {'role': 'system', 'content': 'Here is what has been said so far: '},
+            {'role': 'system', 'content': 'The user can only order items that are on the menu.'},
+            {'role': 'system', 'content': 'When confirm and order before submitting it, ask the user if they want to '
+                                          'add anything else to their order.'},
+            {'role': 'system', 'content': 'Here is what has been said in the conversation so far: '},
         ] + [chat for chat in self._chat_holder] + [
             {'role': 'system', 'content': 'Here is what the user just said: '},
             {'role': 'user', 'content': f'{user_prompt}'}
@@ -188,12 +192,7 @@ class AIAssistant:
             params = json.loads(response['choices'][0]['message']['function_call']['arguments'])
             chosen_function = eval("self." + response['choices'][0]['message']['function_call']['name'])
             chosen_function(**params)
-            response = openai.ChatCompletion.create(
-                model=self._MODEL,
-                messages=[{'role': 'system', 'content': 'Tell the user that their order has been placed.'}]
-            )
-            response = response['choices'][0]['message']['content']
-            self._add_to_chat_history('system', response)
+            print("Your order has been placed. You will be contacted when it is ready for pickup.")
         return response
 
     ########################################################################################################################
