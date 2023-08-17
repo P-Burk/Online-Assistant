@@ -132,6 +132,40 @@ class AIAssistant:
     # The following functions are for the order processing section of the AI assistant.
     ########################################################################################################################
 
+
+    def __user_name_extractor(self, user_prompt: str) -> str:
+        user_name = response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo-0613",
+            messages=[
+                {"role": "system",
+                 "content": "You are a system who's purpose is to extract the name from a string of text. "
+                            "You will output only the name of the user and nothing else. "
+                            "If a name cannot be found, output \"\"\"None\"\"\"."},
+                {"role": "user", "content": "My name is Preston."},
+                {"role": "assistant", "content": "Preston"},
+                {"role": "user", "content": "Hi, my name is Sandra, but you can call me Sandy."},
+                {"role": "assistant", "content": "Sandy"},
+                {"role": "user", "content": "can I get a towel?"},
+                {"role": "assistant", "content": "None"},
+                {"role": "user", "content": "im looking for an order. It should be under the name debra waters"},
+                {"role": "assistant", "content": "Debra Waters"},
+                {"role": "user", "content": "what time is it right now?"},
+                {"role": "assistant", "content": "None"},
+                {"role": "user", "content": "did you see lauren land that crazy high jump the other day?"},
+                {"role": "assistant", "content": "Lauren"},
+                {"role": "user", "content": "Hey, this is Dean. Can I place an order to be picked up?"},
+                {"role": "assistant", "content": "Dean"},
+                {"role": "user", "content": f"{user_prompt}"}
+            ],
+            temperature=0.5,
+            max_tokens=24,
+            top_p=1,
+            frequency_penalty=0,
+            presence_penalty=0
+        )
+        user_name = user_name['choices'][0]['message']['content']
+        return user_name
+
     def make_order(self, user_name: str, user_phone: str, user_email: str, order_items: List[dict],
                    payment_method: str, order_total: float):
         order = {
