@@ -6,7 +6,7 @@ import openai
 from app import DBHelper
 
 load_dotenv(find_dotenv())
-openai.api_key = os.getenv("OPENAI_API_KEY")
+openai.api_key = os.getenv("OTHER_OPENAI_API_KEY")
 
 
 class AIAssistant:
