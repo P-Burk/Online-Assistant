@@ -205,6 +205,60 @@ class AIAssistant:
         user_phone = user_phone['choices'][0]['message']['content']
         return user_phone
 
+    def __user_email_extractor(self, user_prompt: str) -> str | None:
+        user_email = openai.ChatCompletion.create(
+            model=self._MODEL,
+            messages=[
+                {"role": "system",
+                 "content": "You are a system whose purpose is to extract the email from a string of text. "
+                            "You will output only the email of the user and nothing else. "
+                            "If an email cannot be found, output \"\"\"None\"\"\". \n"
+                            "Common email domain names are:\n@gmail.com,\n@yahoo.com,\n@outlook.com,\n@hotmail.com,"
+                            "\n@aol.com,\n@icloud.com,\n@mail.com,\n@protonmail.com,\n@yandex.com,\n@gmx.com,"
+                            "\n@zoho.com"},
+                {"role": "user",
+                 "content": "Could you please send me the details at john.doe@example.com? "
+                            "I'm looking forward to reviewing the information."},
+                {"role": "assistant", "content": "john.doe@example.com"},
+                {"role": "user",
+                 "content": "I'll be available for the call tomorrow. "
+                            "You can reach me at sarah.smith@emailprovider.net. Thanks!"},
+                {"role": "assistant", "content": "sarah.smith@emailprovider.net"},
+                {"role": "user",
+                 "content": "If you have any questions, don't hesitate to email me at info@companyname.com. "
+                            "I'll be glad to assist you."},
+                {"role": "assistant", "content": "info@companyname.com"},
+                {"role": "user",
+                 "content": "can you please send me your email. "
+                            "I want to forward you the message the supervisor sent."},
+                {"role": "assistant", "content": "None"},
+                {"role": "user",
+                 "content": "The document is attached. Let me know if you need any changes. "
+                            "My email is jane.roberts@gmail.com."},
+                {"role": "assistant", "content": "jane.roberts@gmail.com"},
+                {"role": "user",
+                 "content": "I'd like to subscribe to your newsletter. "
+                            "Please add me using my personal address: news.subscriber@hotmail.com."},
+                {"role": "assistant", "content": "news.subscriber@hotmail.com"},
+                {"role": "user",
+                 "content": "is your email mikejones@gmail.com? I keep getting a \"no delivered\" error."},
+                {"role": "assistant", "content": "mikejones@gmail.com"},
+                {"role": "user",
+                 "content": "can you please forward that message to fakeemail@outlook.com? I want to save it."},
+                {"role": "assistant", "content": "fakeemail@outlook.com"},
+                {"role": "user", "content": f"{user_prompt}"}
+            ],
+            temperature=0.5,
+            max_tokens=48,
+            top_p=1,
+            frequency_penalty=0,
+            presence_penalty=0
+        )
+        user_email = user_email['choices'][0]['message']['content']
+        if user_email == "None":
+            return None
+        return user_email
+
     def make_order(self, user_name: str, user_phone: str, user_email: str, order_items: List[dict],
                    payment_method: str, order_total: float):
         order = {
