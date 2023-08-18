@@ -128,17 +128,16 @@ class AIAssistant:
             print(chat)
         print("------------------------------------")
 
-    ########################################################################################################################
+    ##################################################################################################################
     # The following functions are for the order processing section of the AI assistant.
-    ########################################################################################################################
+    ##################################################################################################################
 
-
-    def __user_name_extractor(self, user_prompt: str) -> Any | None:
+    def __user_name_extractor(self, user_prompt: str) -> str | None:
         user_name = response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo-0613",
+            model=self._MODEL,
             messages=[
                 {"role": "system",
-                 "content": "You are a system who's purpose is to extract the name from a string of text. "
+                 "content": "You are a system whose purpose is to extract the name from a string of text. "
                             "You will output only the name of the user and nothing else. "
                             "If a name cannot be found, output \"\"\"None\"\"\"."},
                 {"role": "user", "content": "My name is Preston."},
@@ -333,19 +332,22 @@ class AIAssistant:
         self._add_to_chat_history('user', user_prompt)
         print("Before chat call")
         context_messages = [
-            {'role': 'system', 'content': 'You are an online assistant designed to help a customer at a brewery.'},
-            {'role': 'system', 'content': 'You need to ask the user for all of the information to make an order, '
-                                          'but don\'t ask for information that the user has already provided.'
-                                          'Also, only ask for small chunks of information at a time.'},
-            {'role': 'system', 'content': f'Here is our menu: {self._db_helper.get_menu()}'},
-            {'role': 'system', 'content': 'The user can only order items that are on the menu.'},
-            {'role': 'system', 'content': 'When confirm and order before submitting it, ask the user if they want to '
-                                          'add anything else to their order.'},
-            {'role': 'system', 'content': 'Here is what has been said in the conversation so far: '},
-        ] + [chat for chat in self._chat_holder] + [
-            {'role': 'system', 'content': 'Here is what the user just said: '},
-            {'role': 'user', 'content': f'{user_prompt}'}
-        ]
+                               {'role': 'system',
+                                'content': 'You are an online assistant designed to help a customer at a brewery.'},
+                               {'role': 'system',
+                                'content': 'You need to ask the user for all of the information to make an order, '
+                                           'but don\'t ask for information that the user has already provided.'
+                                           'Also, only ask for small chunks of information at a time.'},
+                               {'role': 'system', 'content': f'Here is our menu: {self._db_helper.get_menu()}'},
+                               {'role': 'system', 'content': 'The user can only order items that are on the menu.'},
+                               {'role': 'system',
+                                'content': 'When confirm and order before submitting it, ask the user if they want to '
+                                           'add anything else to their order.'},
+                               {'role': 'system', 'content': 'Here is what has been said in the conversation so far: '},
+                           ] + [chat for chat in self._chat_holder] + [
+                               {'role': 'system', 'content': 'Here is what the user just said: '},
+                               {'role': 'user', 'content': f'{user_prompt}'}
+                           ]
         for chat in self._chat_holder:
             print(chat)
         response = openai.ChatCompletion.create(
@@ -369,9 +371,9 @@ class AIAssistant:
             print("Your order has been placed. You will be contacted when it is ready for pickup.")
         return response
 
-    ########################################################################################################################
+    ##################################################################################################################
     # The following functions are for the general questions section of the AI assistant.
-    ########################################################################################################################
+    ##################################################################################################################
 
     # Classifies the question and returns the classification.
     # Classification is based on fields found in the FAQ collection.
@@ -397,10 +399,12 @@ class AIAssistant:
         if prompt_classification == "NONE":
             message = [
                 {'role': 'system',
-                 'content': f'Inform the customer to please call the brewery 555-987-6543 or reach out on social media/email to get an answer to their question.'},
+                 'content': f'Inform the customer to please call the brewery 555-987-6543 or reach out on '
+                            f'social media/email to get an answer to their question.'},
                 {'role': 'system', 'content': 'Return a concise answer to the user prompt.'},
                 {'role': 'system',
-                 'content': 'If the user prompt is not answered, ask the user to rephrase their question or contact the brewery directly.'},
+                 'content': 'If the user prompt is not answered, ask the user to rephrase their question or '
+                            'contact the brewery directly.'},
                 {'role': 'user', 'content': f'{user_prompt}'}
             ]
         else:
@@ -409,7 +413,8 @@ class AIAssistant:
                 {'role': 'system', 'content': f'The following is information about the brewery: {context}.'},
                 {'role': 'system', 'content': 'Return a concise answer to the user prompt.'},
                 {'role': 'system',
-                 'content': 'If the user prompt is not answered, ask the user to rephrase their question or contact the brewery directly.'},
+                 'content': 'If the user prompt is not answered, ask the user to rephrase their question or '
+                            'contact the brewery directly.'},
                 {'role': 'user', 'content': f'{user_prompt}'}
             ]
         response = openai.ChatCompletion.create(
