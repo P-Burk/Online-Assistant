@@ -305,6 +305,69 @@ class AIAssistant:
             return None
         return user_email
 
+    def __order_items_extractor(self, user_prompt: str) -> List[dict] | None:
+        order_items = openai.ChatCompletion.create(
+            model=self._MODEL,
+            messages=[
+                {"role": "system",
+                 "content": "You are a system whose purpose is to extract the items from an order and the quantity "
+                            "of said items out of a string of text. You will output only the items and their "
+                            "quantities and nothing else. Convert any plural forms of item names to the singular form"
+                            "of the item name. "
+                            "The output will be in the following format:\n"
+                            "```\n"
+                            "[{\"item_name\": \"ITEM NAME\" , \"item_qty\" : INTEGER},\n"
+                            "{\"item_name\": \"SECOND ITEM NAME\" , \"item_qty\" : INTEGER}]\n"
+                            "```\n"
+                            "If no food items are ordered, return and empty array such as ```[]```."},
+                {"role": "assistant", "content": "Cash"},
+                {"role": "user", "content": "I'd like to order 2 cheeseburgers and 3 fries."},
+                {"role": "assistant",
+                 "content": "[{\"item_name\": \"cheeseburger\" , \"item_qty\" : 2},\n"
+                            "{\"item_name\": \"fries\" , \"item_qty\" : 3}]"},
+                {"role": "user", "content": "Can I please get one apple pie and one blueberry tart?"},
+                {"role": "assistant",
+                    "content": "[{\"item_name\": \"apple pie\" , \"item_qty\" : 1},\n"
+                               "{\"item_name\": \"blueberry tart\" , \"item_qty\" : 1}]"},
+                {"role": "user", "content": "I'm done eating. Let's go to the movies and then head home."},
+                {"role": "assistant", "content": "[]"},
+                {"role": "user", "content": "I'll take 10 beef tacos, and he'll have five chicken quesadillas."},
+                {"role": "assistant",
+                    "content": "[{\"item_name\": \"beef taco\" , \"item_qty\" : 10},\n"
+                               "{\"item_name\": \"chicken quesadilla\" , \"item_qty\" : 5}]"},
+                {"role": "user",
+                    "content": "We'd like to order 2 chicken buckets, 5 dinner rolls, a side of mac n' cheese, "
+                               "a side of mashed potatoes, and 2 fudge brownies."},
+                {"role": "assistant",
+                    "content": "[{\"item_name\": \"chicken bucket\" , \"item_qty\" : 2},\n"
+                               "{\"item_name\": \"dinner rolls\" , \"item_qty\" : 5},\n"
+                               "{\"item_name\": \"mac n' cheese\" , \"item_qty\" : 1},\n"
+                               "{\"item_name\": \"mashed potatoes\" , \"item_qty\" : 1}]"},
+                {"role": "user", "content": "can i get two large fries and 5 orders of chicken nuggets?"},
+                {"role": "assistant",
+                 "content": "[{\"item_name\": \"large fries\" , \"item_qty\" : 2},\n"
+                            "{\"item_name\": \"chicken nuggets\" , \"item_qty\" : 5}]"},
+                {"role": "user",
+                 "content": "I forgot what I want to order. Maybe I will come back later and get a brownie."},
+                {"role": "assistant", "content": "[]"},
+                {'role': 'user', 'content': f'{user_prompt}'}
+            ],
+            temperature=0.5,
+            max_tokens=256,
+            top_p=1,
+            frequency_penalty=0,
+            presence_penalty=0
+        )
+        # instead of try/except, we can do if finish_reason is "length"
+        try:
+            order_items = json.loads(order_items['choices'][0]['message']['content'])
+        except Exception as error:
+            print(f"There was an error extracting the order items: \n{error}")
+            return None
+        return order_items
+
+
+
     def make_order(self, user_name: str, user_phone: str, user_email: str, order_items: List[dict],
                    payment_method: str, order_total: float):
         order = {
