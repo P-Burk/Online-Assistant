@@ -103,6 +103,17 @@ class DBHandler:
             print(error)
             print("Failed to add order to database.")
 
+    def update_order(self, query: dict, update_data: dict):
+        """
+        Updates a single order.
+        :param query: dictionary of content to find the order to update.
+        :param update_data: dictionary of content to update the order with.
+        """
+        try:
+            self.db.orders.update_one(query, update_data)
+        except Exception as error:
+            print(f"Failed to update order in database: \nf{error}")
+
     def get_menu(self):
         query = {
             "$and": [
