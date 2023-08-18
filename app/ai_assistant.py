@@ -168,6 +168,43 @@ class AIAssistant:
             return None
         return user_name
 
+    def __user_phone_extractor(self, user_prompt: str) -> str:
+        user_phone = openai.ChatCompletion.create(
+            model=self._MODEL,
+            messages=[
+                {"role": "system",
+                 "content": "You are a system whose purpose is to extract the phone number from a string of text."
+                            "You will output only the phone number of the user and nothing else. "
+                            "If a phone number cannot be found, output \"\"\"000-000-0000\"\"\"."},
+                {"role": "user", "content": "My phone number is 123-456-7890."},
+                {"role": "assistant", "content": "123-456-7890"},
+                {"role": "user", "content": "hey, can you call be back at 8529517536?"},
+                {"role": "assistant", "content": "852-951-7536"},
+                {"role": "user", "content": "Do you know Brad's phone number?"},
+                {"role": "assistant", "content": "000-000-0000"},
+                {"role": "user",
+                 "content": "you've reached Bill at 741-124-8965, please leave a message and I'll get back to you."},
+                {"role": "assistant", "content": "741-124-8965"},
+                {"role": "user", "content": "what time is it right now?"},
+                {"role": "assistant", "content": "000-000-0000"},
+                {"role": "user", "content": "I tried calling John at 9996582350, but no one picked up."},
+                {"role": "assistant", "content": "999-658-2350"},
+                {"role": "user", "content": "Do you remember Janice's phone number? I think I have the wrong one."},
+                {"role": "assistant", "content": "000-000-0000"},
+                {"role": "user", "content": "If you have any questions, "
+                                            "feel free to reach out to me at (555) 123-4567."},
+                {"role": "assistant", "content": "555-123-4567"},
+                {"role": "user", "content": f"{user_prompt}"}
+            ],
+            temperature=0.5,
+            max_tokens=24,
+            top_p=1,
+            frequency_penalty=0,
+            presence_penalty=0
+        )
+        user_phone = user_phone['choices'][0]['message']['content']
+        return user_phone
+
     def make_order(self, user_name: str, user_phone: str, user_email: str, order_items: List[dict],
                    payment_method: str, order_total: float):
         order = {
