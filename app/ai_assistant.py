@@ -205,6 +205,53 @@ class AIAssistant:
         user_phone = user_phone['choices'][0]['message']['content']
         return user_phone
 
+    def __payment_method_extractor(self, user_prompt: str) -> str | None:
+        payment_method = openai.ChatCompletion.create(
+            model=self._MODEL,
+            messages=[
+                {"role": "system",
+                 "content": "You are a system whose purpose is to extract the payment method from a string of text. "
+                            "You will output only the payment method of the user and nothing else. "
+                            "If a payment method cannot be found, output \"\"\"None\"\"\". "
+                            "The three payment methods are:\nCash,\nCard,\nBoth"},
+                {"role": "user", "content": "I'll be paying with cash."},
+                {"role": "assistant", "content": "Cash"},
+                {"role": "user", "content": "My debit card number is 1234 5678 9012 3456."},
+                {"role": "assistant", "content": "Card"},
+                {"role": "user", "content": "can you put it on my credit card?"},
+                {"role": "assistant", "content": "Card"},
+                {"role": "user", "content": "I'll pay for it tomorrow."},
+                {"role": "assistant", "content": "None"},
+                {"role": "user", "content": "I'm ready to make a purchase. "
+                                            "What payment options do you accept – cash or card?"},
+                {"role": "assistant", "content": "Both"},
+                {"role": "user", "content": "Is it possible to split the bill between cash and card payments "
+                                            "for our dinner tonight?"},
+                {"role": "assistant", "content": "Both"},
+                {"role": "user", "content": "I'm planning to attend the event. Should I bring cash for tickets?"},
+                {"role": "assistant", "content": "Cash"},
+                {"role": "user", "content": "Do you know if the store down the road takes card?"},
+                {"role": "assistant", "content": "Card"},
+                {"role": "user", "content": "I don't have my card with me. Can I pay with cash?"},
+                {"role": "assistant", "content": "Cash"},
+                {"role": "user", "content": "do you guys take cash?"},
+                {"role": "assistant", "content": "Cash"},
+                {"role": "user", "content": "I'm not sure if I should pay with cash or card. "
+                                            "I think this time I will use my card. I want to get the points."},
+                {"role": "assistant", "content": "Card"},
+                {"role": "user", "content": f"{user_prompt}"}
+            ],
+            temperature=0.5,
+            max_tokens=8,
+            top_p=1,
+            frequency_penalty=0,
+            presence_penalty=0
+        )
+        payment_method = payment_method['choices'][0]['message']['content']
+        if payment_method == "None":
+            return None
+        return payment_method
+
     def __user_email_extractor(self, user_prompt: str) -> str | None:
         user_email = openai.ChatCompletion.create(
             model=self._MODEL,
