@@ -1,5 +1,5 @@
 import os
-from typing import List
+from typing import List, Any
 from dotenv import load_dotenv, find_dotenv
 import json
 import openai
@@ -133,7 +133,7 @@ class AIAssistant:
     ########################################################################################################################
 
 
-    def __user_name_extractor(self, user_prompt: str) -> str:
+    def __user_name_extractor(self, user_prompt: str) -> Any | None:
         user_name = response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo-0613",
             messages=[
@@ -164,6 +164,8 @@ class AIAssistant:
             presence_penalty=0
         )
         user_name = user_name['choices'][0]['message']['content']
+        if user_name == "None":
+            return None
         return user_name
 
     def make_order(self, user_name: str, user_phone: str, user_email: str, order_items: List[dict],
