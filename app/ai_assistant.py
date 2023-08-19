@@ -305,7 +305,7 @@ class AIAssistant:
             return None
         return user_email
 
-    def __order_items_extractor(self, user_prompt: str) -> dict | None:
+    def order_items_extractor(self, user_prompt: str) -> dict | None:
         order_items = openai.ChatCompletion.create(
             model=self._MODEL,
             messages=[
@@ -346,7 +346,7 @@ class AIAssistant:
                 {'role': 'user', 'content': f'{user_prompt}'}
             ],
             temperature=0.5,
-            max_tokens=256,
+            max_tokens=512,
             top_p=1,
             frequency_penalty=0,
             presence_penalty=0
@@ -355,6 +355,8 @@ class AIAssistant:
         if order_items == "None":
             return None
         order_items = json.loads(order_items)
+        order_items = self.__order_items_GPT_cross_check(order_items)
+        order_items = self.__order_items_total_calculator(order_items)
         return order_items
 
     def __order_items_GPT_cross_check(self, order_items: dict) -> dict:
