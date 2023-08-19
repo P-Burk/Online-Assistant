@@ -14,59 +14,104 @@ class AIAssistant:
     _SUMMARY_LENGTH = 150
     _CHAT_HISTORY_LENGTH = 15  # making this too high results in slower response and more token usage
     _FUNCTIONS = [
+        # {
+        #     "name": "make_order",
+        #     "description": "Create a new order for a restaurant.",
+        #     "parameters": {
+        #         "type": "object",
+        #         "properties": {
+        #             "user_name": {
+        #                 "type": "string",
+        #                 "description": "Customer's name."
+        #             },
+        #             "user_phone": {
+        #                 "type": "string",
+        #                 "description": "Customer's phone number."
+        #             },
+        #             "user_email": {
+        #                 "type": "string",
+        #                 "format": "email",
+        #                 "description": "Customer's email address."
+        #             },
+        #             "order_items": {
+        #                 "type": "array",
+        #                 "items": {
+        #                     "type": "object",
+        #                     "properties": {
+        #                         "item_name": {
+        #                             "type": "string",
+        #                             "description": "Item name."
+        #                         },
+        #                         "item_quantity": {
+        #                             "type": "integer",
+        #                             "minimum": 1,
+        #                             "description": "Item quantity."
+        #                         },
+        #                         "item_price": {
+        #                             "type": "number",
+        #                             "description": "Item price. Multiply this by the quantity to get the total price for the item."
+        #                         }
+        #                     },
+        #                     "required": ["name", "quantity", "price"]
+        #                 },
+        #                 "description": "List of items in the order."
+        #             },
+        #             "payment_method": {
+        #                 "type": "string",
+        #                 "enum": ["cash", "credit_card"],
+        #                 "description": "Payment method for the order."
+        #             },
+        #             "order_total": {
+        #                 "type": "number",
+        #                 "description": "Total amount for the order."
+        #             }
+        #         },
+        #         "required": ["user_name", "user_phone", "user_email", "order_items", "payment_method", "order_total"]
+        #     }
+        # },
         {
-            "name": "make_order",
-            "description": "Create a new order for a restaurant.",
+            "name": "order_entry_point",
+            "description": "This function gets the user's information and what they want to order, "
+                           "then it submits the order to the restaurant. All orders start with this function.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "user_name": {
+                    "user_prompt": {
                         "type": "string",
-                        "description": "Customer's name."
-                    },
-                    "user_phone": {
-                        "type": "string",
-                        "description": "Customer's phone number."
-                    },
-                    "user_email": {
-                        "type": "string",
-                        "format": "email",
-                        "description": "Customer's email address."
-                    },
-                    "order_items": {
-                        "type": "array",
-                        "items": {
-                            "type": "object",
-                            "properties": {
-                                "item_name": {
-                                    "type": "string",
-                                    "description": "Item name."
-                                },
-                                "item_quantity": {
-                                    "type": "integer",
-                                    "minimum": 1,
-                                    "description": "Item quantity."
-                                },
-                                "item_price": {
-                                    "type": "number",
-                                    "description": "Item price. Multiply this by the quantity to get the total price for the item."
-                                }
-                            },
-                            "required": ["name", "quantity", "price"]
-                        },
-                        "description": "List of items in the order."
-                    },
-                    "payment_method": {
-                        "type": "string",
-                        "enum": ["cash", "credit_card"],
-                        "description": "Payment method for the order."
-                    },
-                    "order_total": {
-                        "type": "number",
-                        "description": "Total amount for the order."
+                        "description": "Text input from the user requesting to make an order."
                     }
                 },
-                "required": ["user_name", "user_phone", "user_email", "order_items", "payment_method", "order_total"]
+                "required": ["user_prompt"]
+            }
+        },
+        {
+            "name": "general_questions_entry_point",
+            "description": "This function looks up the user's question in the FAQ database and returns the answer.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "user_prompt": {
+                        "type": "string",
+                        "description": "Text input from the user possibly containing a question about the restaurant."
+                    }
+                },
+                "required": ["user_prompt"]
+            }
+        },
+        {
+            "name": "get_menu_entry_point",
+            "description": "This function looks up the restaurant's menu and answers the user's questions about the"
+                           "menu or items on the menu.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "user_prompt": {
+                        "type": "string",
+                        "description": "Text input from the user possibly containing a question about the menu "
+                                       "or items on the menu."
+                    }
+                },
+                "required": ["user_prompt"]
             }
         }
     ]
