@@ -434,6 +434,12 @@ class AIAssistant:
 
         return order_items
 
+    def __order_total_calculator(self, user_order: dict) -> float:
+        total = 0.0
+        for item in user_order['order_items'].keys():
+            total += user_order['order_items'][item]["item_total_price"]
+        return total
+
     def make_order(self, user_name: str, user_phone: str, user_email: str, order_items: List[dict],
                    payment_method: str, order_total: float):
         order = {
