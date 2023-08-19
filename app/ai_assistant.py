@@ -357,6 +357,81 @@ class AIAssistant:
         order_items = json.loads(order_items)
         return order_items
 
+    def __order_items_GPT_cross_check(self, order_items: dict) -> dict:
+        beer_menu = {}
+        food_menu = {}
+        db_menu = json.loads(self._db_helper.get_menu())
+        output_items = {}
+
+        for section in db_menu:
+            beer_menu = section.get("beer_menu", {})
+            food_menu = section.get("food_menu", {})
+
+        for item in order_items:
+            determination = openai.ChatCompletion.create(
+                model=self._MODEL,
+                messages=[
+                    {"role": "system",
+                     "content": "You are a system whose purpose is to cross check whether an item in the order is "
+                                "on the provided menus. If the order item is not on the menu, "
+                                "output ```None``` If the order item is on the menu, you will correct its "
+                                "spelling and then output the corrected order item. If the order item is on "
+                                "the menu and doesn't need correction, output the order item."
+                                f"\nThe beer menu is:\n```\n{beer_menu}\n```\n"
+                                f"The food menu is:\n```\n{food_menu}\n```"
+                     },
+                    {"role": "user", "content": "cheeseburger"},
+                    {"role": "assistant", "content": "Classic Cheeseburger"},
+                    {"role": "user", "content": "Loaded Nachos"},
+                    {"role": "assistant", "content": "Loaded Nachos"},
+                    {"role": "user", "content": "mushrom swis burger"},
+                    {"role": "assistant", "content": "Mushroom Swiss Burger"},
+                    {"role": "user", "content": "grilled cheese sandwich"},
+                    {"role": "assistant", "content": "None"},
+                    {"role": "user", "content": "Cocacola"},
+                    {"role": "assistant", "content": "None"},
+                    {"role": "user", "content": "Beer"},
+                    {"role": "assistant", "content": "None"},
+                    {"role": "user", "content": "velvet lager"},
+                    {"role": "assistant", "content": "Velvet Lager"},
+                    {"role": "user", "content": f"{item}"}
+                ],
+                temperature=0.5,
+                max_tokens=20,
+                top_p=1,
+                frequency_penalty=0,
+                presence_penalty=0
+            )
+            determination = determination['choices'][0]['message']['content']
+            if determination == "None":
+                output_items[item] = None
+            else:
+                output_items[determination] = order_items[item]
+        return output_items
+
+    def __order_items_total_calculator(self, order_items: dict) -> dict:
+        beer_menu = {}
+        food_menu = {}
+        db_menu = json.loads(self._db_helper.get_menu())
+
+        for section in db_menu:
+            beer_menu = section.get("beer_menu", {})
+            food_menu = section.get("food_menu", {})
+
+        for item in order_items.keys():
+            # beer check
+            if item in beer_menu.keys():
+                order_items[item]["item_price"] = beer_menu[item]["price"]
+                order_items[item]["item_total_price"] = beer_menu[item]["price"] * order_items[item]["item_qty"]
+
+            # food check
+            for category in food_menu.values():
+                if item in category.keys():
+                    order_items[item]["item_price"] = category[item]["price"]
+                    order_items[item]["item_total_price"] = category[item]["price"] * order_items[item]["item_qty"]
+
+        return order_items
+
     def make_order(self, user_name: str, user_phone: str, user_email: str, order_items: List[dict],
                    payment_method: str, order_total: float):
         order = {
