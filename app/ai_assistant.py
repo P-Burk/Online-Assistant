@@ -120,6 +120,114 @@ class AIAssistant:
         self._chat_holder: List[dict] = []
         self._db_helper = DBHelper.DBHandler()
         self._general_question_classifications = self._db_helper.get_all_field_names("FAQ")
+        self._order_holder = {
+            "user_name": None,
+            "user_phone": None,
+            "user_email": None,
+            "order_items": None,
+            "payment_method": None,
+            # "order_total": None  # gets added later
+        }
+
+    def check_order(self) -> List[str]:
+        output_list = []
+        for field in self._order_holder.keys():
+            if self._order_holder[field] is None:
+                output_list.append(field)
+        return output_list
+
+    def new_entry_point(self, user_prompt: str) -> str:
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo-0613",
+            messages=[
+                {"role": "system",
+                 "content": "Determine whether the user is trying to make an order, ask a general question, "
+                            "or get the menu."
+                            "Call the appropriate function based on the user's input. "
+                            "ALWAYS assign the the user's text as the argument."
+                            "The format for the argument is:"
+                            "\n```\n"
+                            "{\"user_prompt\": \"USER PROMPT\"}"
+                            "\n```\n"
+                            "If no intent can be determined, ask the user to rephrase their question."
+                            "Only make function calls or ask the user to rephrase their question."},
+                {"role": "user", "content": "I'd like to place an order."},
+                {"role": "function", "name": "order_entry_point", 'content': ""},
+                {"role": "user", "content": "can i make an order?"},
+                {"role": "function", "name": "order_entry_point", 'content': ""},
+                {"role": "user", "content": "can i put in an order"},
+                {"role": "function", "name": "order_entry_point", 'content': ""},
+                {"role": "user", "content": "i want to place an order to be picked up"},
+                {"role": "function", "name": "order_entry_point", 'content': ""},
+                {"role": "user", "content": "I'm ready to order."},
+                {"role": "function", "name": "order_entry_point", 'content': ""},
+                {"role": "user", "content": "I'd like to start an order."},
+                {"role": "function", "name": "order_entry_point", 'content': ""},
+                {"role": "user", "content": "Can I pay with cash or card?"},
+                {"role": "function", "name": "general_question_entry_point", 'content': ""},
+                {"role": "user", "content": "what do you guys have on the menu?"},
+                {"role": "function", "name": "get_menu_entry_point", 'content': ""},
+                {"role": "user", "content": "Can I place an order to be picked up?"},
+                {"role": "function", "name": "order_entry_point", 'content': ""},
+                {"role": "user", "content": "do you guys have outdoor seating?"},
+                {"role": "function", "name": "general_question_entry_point", 'content': ""},
+                {"role": "user", "content": f"{user_prompt}"}
+            ],
+            functions=self._FUNCTIONS,
+            function_call="auto",
+            temperature=0.5,
+            max_tokens=500,
+            top_p=1,
+            frequency_penalty=0,
+            presence_penalty=0
+        )
+        print(response)
+        try:
+            argument = json.loads(response["choices"][0]["message"]["function_call"]["arguments"])
+            function_name = response["choices"][0]["message"]["function_call"]["name"]
+            print(f"function_name: {function_name}")
+            print(f"argument: {argument}")
+            chosen_function = eval(f"self.{function_name}")
+            response = chosen_function(**argument)
+        except KeyError:
+            response = response["choices"][0]["message"]["content"]
+
+        print(response)
+
+    def order_entry_point(self, user_prompt: str):
+        print("Sure thing, lets get your order in.")
+        needed_info = self.check_order()
+        while len(needed_info) > 0:
+            match needed_info[0]:
+                case "user_name":
+                    user_name = (input("What is your name? "))
+                    self._order_holder["user_name"] = self.__user_name_extractor(user_name)
+                    needed_info = self.check_order()
+                case "user_phone":
+                    user_phone = (input("What is your phone number? "))
+                    self._order_holder["user_phone"] = self.__user_phone_extractor(user_phone)
+                    needed_info = self.check_order()
+                case "user_email":
+                    user_email = (input("What is your email? "))
+                    self._order_holder["user_email"] = self.__user_email_extractor(user_email)
+                    needed_info = self.check_order()
+                case "order_items":
+                    order_items = (input("What would you like to order? "))
+                    self._order_holder["order_items"] = self.__order_items_extractor(order_items)
+                    needed_info = self.check_order()
+                case "payment_method":
+                    payment_method = (input("How would you like to pay? "))
+                    self._order_holder["payment_method"] = self.__payment_method_extractor(payment_method)
+                    needed_info = self.check_order()
+                case _:  # default case
+                    pass
+
+        self._order_holder["order_total"] = self.__order_total_calculator(self._order_holder)
+        print(f"order_holder before submit: {self._order_holder}")
+        self.make_order(**self._order_holder)
+        needed_info = self.check_order()
+        self._order_holder = {key: None for key in self._order_holder.keys()}
+        print("Your order has been placed. You will be contacted when it is ready for pickup.")
 
     def _add_to_chat_history(self, input_role: str, input_msg: str) -> None:
         self._chat_holder.append({'role': input_role, 'content': input_msg})
@@ -212,7 +320,7 @@ class AIAssistant:
             return None
         return user_name
 
-    def __user_phone_extractor(self, user_prompt: str) -> str:
+    def __user_phone_extractor(self, user_prompt: str) -> str | None:
         user_phone = openai.ChatCompletion.create(
             model=self._MODEL,
             messages=[
@@ -247,6 +355,8 @@ class AIAssistant:
             presence_penalty=0
         )
         user_phone = user_phone['choices'][0]['message']['content']
+        if user_phone == "000-000-0000":
+            return None
         return user_phone
 
     def __payment_method_extractor(self, user_prompt: str) -> str | None:
@@ -350,7 +460,7 @@ class AIAssistant:
             return None
         return user_email
 
-    def order_items_extractor(self, user_prompt: str) -> dict | None:
+    def __order_items_extractor(self, user_prompt: str) -> dict | None:
         order_items = openai.ChatCompletion.create(
             model=self._MODEL,
             messages=[
@@ -402,6 +512,7 @@ class AIAssistant:
         order_items = json.loads(order_items)
         order_items = self.__order_items_GPT_cross_check(order_items)
         order_items = self.__order_items_total_calculator(order_items)
+        print(f"order_items: {order_items}")
         return order_items
 
     def __order_items_GPT_cross_check(self, order_items: dict) -> dict:
@@ -485,7 +596,7 @@ class AIAssistant:
             total += user_order['order_items'][item]["item_total_price"]
         return total
 
-    def make_order(self, user_name: str, user_phone: str, user_email: str, order_items: List[dict],
+    def make_order(self, user_name: str, user_phone: str, user_email: str, order_items: dict,
                    payment_method: str, order_total: float):
         order = {
             "user_name": user_name,
@@ -573,7 +684,7 @@ class AIAssistant:
         return response
 
     # Returns a response to a general question.
-    def general_questions(self, user_prompt: str) -> str:
+    def general_questions_entry_point(self, user_prompt: str) -> str:
         self._add_to_chat_history('user', user_prompt)
         prompt_classification = self.__get_general_question_classification(user_prompt)
         if prompt_classification == "NONE":
@@ -602,8 +713,30 @@ class AIAssistant:
             messages=message,
             max_tokens=500
         )
-        print(response['usage'])
         response = response['choices'][0]['message']['content']
         self._add_to_chat_history('system', response)
         self.print_chat_history()
+        return response
+
+    ##################################################################################################################
+    # The following functions are for the menu section of the AI assistant.
+    ##################################################################################################################
+
+    def get_menu_entry_point(self, user_prompt: str):
+        response = openai.ChatCompletion.create(
+            model=self._MODEL,
+            messages=[
+                {'role': 'system', 'content': f'Here is our menu: {self._db_helper.get_menu()}.'
+                 "Give a brief summary the menu for the customer or answer their questions about menu items."
+                 "If listing menu items, format it in a list by category."},
+                {'role': 'user', 'content': f'{user_prompt}'}
+            ],
+            temperature=0.5,
+            max_tokens=500,
+            top_p=1,
+            frequency_penalty=0,
+            presence_penalty=0
+        )
+        response = response['choices'][0]['message']['content']
+        print(response)
         return response
