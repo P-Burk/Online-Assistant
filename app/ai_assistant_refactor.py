@@ -1,12 +1,11 @@
 import os
 from typing import List
 from dotenv import load_dotenv, find_dotenv
-import json
 import openai
 from app import DBHelper
 
 load_dotenv(find_dotenv())
-openai.api_key = os.getenv("OTHER_OPENAI_API_KEY")
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 
 class AIAssistant:
@@ -76,22 +75,34 @@ class AIAssistant:
                 presence_penalty=0
             )
             response = response['choices'][0]['message']['content']
-            self._add_to_chat_history('assistant', response)
+            self.__add_to_chat_history('assistant', response)
             return response
         else:
             user_input = input("User: ")
-            self._add_to_chat_history('user', user_input)
+            self.__add_to_chat_history('user', user_input)
             classification = self.__intent_chooser(user_input)
-            if classification == 'None':
-                response = "I'm sorry, I don't understand. Can you please rephrase your question?"
-                return response
-            self.__print_chat_history()
-            return classification
+            match classification:
+                case "order food":
+                    self.__print_chat_history()
+                    return "What is your phone number?"
+                case "get menu":
+                    self.__print_chat_history()
+                    return "Here is the menu."
+                case "question answer":
+                    question_answer = self.__general_questions_entry_point(user_input)
+                    self.__print_chat_history()
+                    return "PLACE HOLDER: Question answered"
+                case "None":
+                    self.__print_chat_history()
+                    return "I'm sorry, I don't understand. Can you rephrase that?"
+                case _:
+                    self.__print_chat_history()
+                    return "DEFAULT: I'm sorry, I don't understand. Can you rephrase that?"
 
     ##################################################
     ################ CONVO FUNCTIONS  ################
     ##################################################
-    def _add_to_chat_history(self, input_role: str, input_msg: str) -> None:
+    def __add_to_chat_history(self, input_role: str, input_msg: str) -> None:
         self.__chat_holder.append({'role': input_role, 'content': input_msg})
         self.__prune_chat_history()
 
@@ -150,7 +161,7 @@ class AIAssistant:
             presence_penalty=0
         )
         response = response['choices'][0]['message']['content']
-        self._add_to_chat_history('assistant', f"Current intent: {response}")
+        self.__add_to_chat_history('system', f"Current intent: {response}")
         return response
 
     ##################################################
@@ -160,3 +171,53 @@ class AIAssistant:
     ##################################################
     ################ GENERAL QUESTIONS ###############
     ##################################################
+
+    # Classifies the question and returns the classification.
+    # Classification is based on fields found in the FAQ collection.
+    def __get_general_question_classification(self, user_prompt: str) -> str:
+        question_classification = openai.ChatCompletion.create(
+            model=self.__MODEL,
+            messages=[
+                {'role': 'system',
+                 'content': f'Determine the classification of the following question and choose '
+                            f'from {self.__general_question_classifications} or NONE'},
+                {'role': 'user', 'content': f'{user_prompt}'},
+            ],
+            max_tokens=500
+        )
+        question_classification = question_classification['choices'][0]['message']['content']
+        print(f"General Question Classification: {question_classification}")
+        return question_classification
+
+    # Returns a response to a general question.
+    def __general_questions_entry_point(self, user_prompt: str) -> str:
+        prompt_classification = self.__get_general_question_classification(user_prompt)
+        if prompt_classification == "NONE":
+            message = [
+                {'role': 'system',
+                 'content': f'Inform the customer to please call the brewery 555-987-6543 or reach out on '
+                            f'social media/email to get an answer to their question.'},
+                {'role': 'system', 'content': 'Return a concise answer to the user prompt.'},
+                {'role': 'system',
+                 'content': 'If the user prompt is not answered, ask the user to rephrase their question or '
+                            'contact the brewery directly.'},
+                {'role': 'user', 'content': f'{user_prompt}'}
+            ]
+        else:
+            context = self.__db_helper.read_all(prompt_classification, "FAQ")
+            message = [
+                {'role': 'system', 'content': f'The following is information about the brewery: {context}.'},
+                {'role': 'system', 'content': 'Return a concise answer to the user prompt.'},
+                {'role': 'system',
+                 'content': 'If the user prompt is not answered, ask the user to rephrase their question or '
+                            'contact the brewery directly.'},
+                {'role': 'user', 'content': f'{user_prompt}'}
+            ]
+        response = openai.ChatCompletion.create(
+            model=self.__MODEL,
+            messages=message,
+            max_tokens=500
+        )
+        response = response['choices'][0]['message']['content']
+        self.__add_to_chat_history('assistant', response)
+        return response
