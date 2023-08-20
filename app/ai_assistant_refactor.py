@@ -17,6 +17,7 @@ class AIAssistant:
     def __init__(self):
         self.__chat_holder: List[dict] = []
         self.__db_helper = DBHelper.DBHandler()
+        self.__convo_intent = ""
         self.__general_question_classifications = self.__db_helper.get_all_field_names("FAQ")
         self.__order_holder = {
             "user_name": None,
@@ -130,14 +131,16 @@ class AIAssistant:
             self.__user_phone_extractor(user_input)
             self.__payment_method_extractor(user_input)
             self.__user_email_extractor(user_input)
+            self.__order_items_extractor(user_input)
 
             # classify the user input
-            classification = self.__intent_chooser(user_input)
-            match classification:
+            if self.__convo_intent != "order food":
+                self.__convo_intent = self.__intent_chooser(user_input)
+            match self.__convo_intent:
                 case "order food":
-                    order_items = self.__order_items_extractor(user_input)
+                    output_msg = self.__ask_for_missing_order_info()
                     self.__print_chat_history()
-                    return "What is your name?"
+                    return output_msg
                 case "get menu":
                     self.__print_chat_history()
                     return "Here is the menu."
@@ -149,9 +152,27 @@ class AIAssistant:
                 #     self.__print_chat_history()
                 #     return "I'm sorry, I don't understand. Can you rephrase that?"
                 case _:
-                    default_response = self.__just_a_nice_response(user_input)
+                    default_response = self.__just_a_nice_response(user_input, self.__convo_intent)
                     self.__print_chat_history()
-                    return default_response
+                    return f"PLACE HOLDER: {default_response}"
+
+    def __ask_for_missing_order_info(self) -> str:
+        output_msg = ""
+        if self.__order_holder['user_name'] is None:
+            output_msg = "What is your name?"
+        elif self.__order_holder['user_phone'] is None:
+            output_msg = "What is your phone number?"
+        elif self.__order_holder['user_email'] is None:
+            output_msg = "What is your email?"
+        elif self.__order_holder['payment_method'] is None:
+            output_msg = "How will you be paying?"
+        elif self.__order_holder['order_items'] is None:
+            output_msg = "What would you like to order?"
+        else:
+            output_msg = "I'm sorry, I don't understand. Can you rephrase that?"
+
+        self.__add_to_chat_history('assistant', output_msg)
+        return output_msg
 
     def __order_items_extractor(self, user_prompt: str) -> dict | None:
         order_items = openai.ChatCompletion.create(
@@ -191,6 +212,8 @@ class AIAssistant:
                 {"role": "user",
                  "content": "I forgot what I want to order. Maybe I will come back later and get a brownie."},
                 {"role": "assistant", "content": "None"},
+                {"role": "user", "content": "I'd like to place an order."},
+                {"role": "assistant", "content": "None"},
                 {'role': 'user', 'content': f'{user_prompt}'}
             ],
             temperature=0.5,
@@ -199,10 +222,14 @@ class AIAssistant:
             frequency_penalty=0,
             presence_penalty=0
         )
+        print(order_items)
         order_items = order_items['choices'][0]['message']['content']
         if order_items == "None":
             return None
-        order_items = json.loads(order_items)
+        try:
+            order_items = json.loads(order_items)
+        except json.decoder.JSONDecodeError:
+            return None
         order_items = self.__order_items_gpt_cross_check(order_items)
         order_items = self.__order_items_total_calculator(order_items)
         self.__order_update("order_items", order_items)
@@ -325,23 +352,47 @@ class AIAssistant:
         self.__add_to_chat_history('system', f"Current intent: {response}")
         return response
 
-    def __just_a_nice_response(self, user_prompt: str) -> str:
-        response = openai.ChatCompletion.create(
-            model=self.__MODEL,
-            messages=[
-                {"role": "system", "content": "You are a nice assistant that responds to the user's input. "
-                 "Just supply a brief response to the user to continue the conversation."},
-                {"role": "user", "content": f"{user_prompt}"}
-            ],
-            temperature=0.5,
-            max_tokens=50,
-            top_p=1,
-            frequency_penalty=0,
-            presence_penalty=0
-        )
-        response = response['choices'][0]['message']['content']
-        self.__add_to_chat_history('assistant', response)
-        return response
+    def __just_a_nice_response(self, user_prompt: str, convo_intent: str) -> str:
+        if convo_intent == "order food":
+            response = openai.ChatCompletion.create(
+                model=self.__MODEL,
+                messages=[
+                    {"role": "system",
+                     "content": "You are a nice assistant that responds to the user's input and "
+                                "helps them fill their order. "
+                                f"This is the user's order so far: \n```\n{self.__order_holder}\n```\n"
+                                "Ask the user for missing information so that you can complete their order."},
+                    {"role": "user", "content": f"{user_prompt}"}
+                ],
+                temperature=0.5,
+                max_tokens=50,
+                top_p=1,
+                frequency_penalty=0,
+                presence_penalty=0
+            )
+            response = response['choices'][0]['message']['content']
+            self.__add_to_chat_history('assistant', response)
+            return response
+
+        else:
+            response = openai.ChatCompletion.create(
+                model=self.__MODEL,
+                messages=[
+
+                    {"role": "system",
+                     "content": "You are a nice assistant that responds to the user's input. "
+                     "Provide a brief response to the user."},
+                    {"role": "user", "content": f"{user_prompt}"}
+                ],
+                temperature=0.5,
+                max_tokens=50,
+                top_p=1,
+                frequency_penalty=0,
+                presence_penalty=0
+            )
+            response = response['choices'][0]['message']['content']
+            self.__add_to_chat_history('assistant', response)
+            return response
 
     ##################################################
     ################ ORDER FUNCTIONS ################
