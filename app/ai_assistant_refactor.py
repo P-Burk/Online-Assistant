@@ -1,5 +1,6 @@
 import json
 import os
+import time
 from typing import List
 from dotenv import load_dotenv, find_dotenv
 import openai
@@ -7,12 +8,32 @@ from app import DBHelper
 
 load_dotenv(find_dotenv())
 openai.api_key = os.getenv("OPENAI_API_KEY")
+FUNCTIONS = [
+    {
+        "name": "__submit_order",
+        "description": "Submit an order with calculated total to the database",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "order_to_submit": {
+                    "type": "object",
+                    "description": "A dictionary representing the order to be submitted.",
+                },
+            },
+            "required": ["order_to_submit"],
+        },
+        "return": {
+            "type": "null",
+            "description": "This function does not return any value.",
+        },
+    }
+]
 
 
 class AIAssistant:
     __MODEL = 'gpt-3.5-turbo-0613'
     __SUMMARY_LENGTH = 150
-    __CHAT_HISTORY_LENGTH = 6  # making this too high results in slower response and more token usage
+    __CHAT_HISTORY_LENGTH = 16  # making this too high results in slower response and more token usage
 
     def __init__(self):
         self.__chat_holder: List[dict] = []
@@ -20,10 +41,10 @@ class AIAssistant:
         self.__convo_intent = ""
         self.__general_question_classifications = self.__db_helper.get_all_field_names("FAQ")
         self.__order_holder = {
+            "order_items": None,
             "user_name": None,
             "user_phone": None,
             "user_email": None,
-            "order_items": None,
             "payment_method": None,
             # "order_total": None  # gets added later
         }
@@ -39,13 +60,18 @@ class AIAssistant:
             print(chat)
         print("------------------------------------")
 
-    def __submit_order(self) -> None:
-        if self.__order_complete_flag:
-            self.__order_holder['order_total'] = self.__order_total_calculator(self.__order_holder)
-            self.__db_helper.insert_order(self.__order_holder)
-            self.__reset_order()
-        else:
-            print("Order is not complete.")
+    # def __submit_order(self) -> None:
+    #     if self.__order_complete_flag:
+    #         self.__order_holder['order_total'] = self.__order_total_calculator(self.__order_holder)
+    #         self.__db_helper.insert_order(self.__order_holder)
+    #         self.__reset_order()
+    #     else:
+    #         print("Order is not complete.")
+
+    def __submit_order(self, order_to_submit: dict) -> None:
+        order_to_submit = self.__order_items_total_calculator(order_to_submit)
+        order_to_submit['order_total'] = self.__order_total_calculator(order_to_submit)
+        self.__db_helper.insert_order(order_to_submit)
 
     def __reset_order(self):
         self.__order_holder = {
@@ -57,17 +83,21 @@ class AIAssistant:
             # "order_total": None  # gets added later
         }
         self.__order_flag_raise()
+        self.__convo_intent = ""
 
     def __order_flag_raise(self):
         if None not in self.__order_holder.values():
             self.__order_complete_flag = True
+            self.__submit_order(self.__order_holder)
+            self.__reset_order()
         else:
             self.__order_complete_flag = False
         print(self.__order_complete_flag)
 
     def __order_update(self, key, value):
         self.__order_holder[key] = value
-        self.__add_to_chat_history('system', f"Order update: {key} = {value}")
+        self.__add_to_chat_history('assistant',
+                                   f"Order updated with the following items: {key} = {value}")
         self.__order_flag_raise()
 
     def __order_items_total_calculator(self, order_items: dict) -> dict:
@@ -108,34 +138,51 @@ class AIAssistant:
                 messages=[
                     {"role": "system",
                      "content": "You are a helpful assistant that answers questions about the brewpub. "
-                                "Give the user a short greeting and ask them how you can help them."},
+                                "Give the user a short greeting and ask them what they would like to order from "
+                                "the menu. Give them a nicely formatted output of the menu. The menu is as follows: \n"
+                                "###\n"
+                                f"{self.__db_helper.get_menu()}\n"
+                                "###\n"
+                     }
                 ],
-                temperature=0.5,
-                max_tokens=50,
+                temperature=0.0,
+                max_tokens=1000,
                 top_p=1,
                 frequency_penalty=0,
                 presence_penalty=0
             )
             response = response['choices'][0]['message']['content']
-            self.__add_to_chat_history('assistant', response)
+            self.__add_to_chat_history('assistant', "Hello, welcome to the brewpub. How can I help you?")
             return response
 
         # after the conversation has started
         else:
+            # FIXME: change the order of items in the order data structure. Ask for items first, then name, phone, etc.
+
             user_input = args[0]
+            extractor_list = [
+                self.__order_items_extractor,
+                self.__user_name_extractor,
+                self.__user_phone_extractor,
+                self.__payment_method_extractor,
+                self.__user_email_extractor,
+            ]
             # user_input = input("User: ")
             self.__add_to_chat_history('user', user_input)
 
             # run all extractors before feeding input to the classifier
-            self.__user_name_extractor(user_input)
-            self.__user_phone_extractor(user_input)
-            self.__payment_method_extractor(user_input)
-            self.__user_email_extractor(user_input)
-            self.__order_items_extractor(user_input)
+            # if something is extracted, no need to run subsequent extractors
+            for extractor in extractor_list:
+                result = extractor(user_prompt=user_input)
+                if result is not None:
+                    break
+
 
             # classify the user input
-            if self.__convo_intent != "order food":
-                self.__convo_intent = self.__intent_chooser(user_input)
+            self.__convo_intent = self.__intent_chooser(user_input)
+            print("Convo intent: ", self.__convo_intent)
+            # if self.__convo_intent != "order food":
+            #     self.__convo_intent = self.__intent_chooser(user_input)
             match self.__convo_intent:
                 case "order food":
                     output_msg = self.__ask_for_missing_order_info()
@@ -156,23 +203,118 @@ class AIAssistant:
                     self.__print_chat_history()
                     return f"PLACE HOLDER: {default_response}"
 
-    def __ask_for_missing_order_info(self) -> str:
+    def __ask_for_missing_order_info(self, *args) -> str:
         output_msg = ""
-        if self.__order_holder['user_name'] is None:
-            output_msg = "What is your name?"
-        elif self.__order_holder['user_phone'] is None:
-            output_msg = "What is your phone number?"
-        elif self.__order_holder['user_email'] is None:
-            output_msg = "What is your email?"
-        elif self.__order_holder['payment_method'] is None:
-            output_msg = "How will you be paying?"
-        elif self.__order_holder['order_items'] is None:
+        if self.__order_holder['order_items'] is None:
             output_msg = "What would you like to order?"
+        elif self.__order_holder['user_name'] is None:
+            output_msg = "What name will this order be under?"
+        elif self.__order_holder['user_phone'] is None:
+            output_msg = "What phone number should we use to contact you when the order is ready?"
+        elif self.__order_holder['user_email'] is None:
+            output_msg = "What email address would you like to receive updates at?"
+        elif self.__order_holder['payment_method'] is None:
+            output_msg = "How will you be paying? Cash or card?"
         else:
-            output_msg = "I'm sorry, I don't understand. Can you rephrase that?"
+            output_msg = self.__just_a_nice_response(args[0], self.__convo_intent)
+            #output_msg = "I'm sorry, I don't understand. Can you rephrase that?"
 
         self.__add_to_chat_history('assistant', output_msg)
         return output_msg
+
+    # def just_get_the_order(self, *args):
+    #     if len(self.__chat_holder) == 0:
+    #         response = openai.ChatCompletion.create(
+    #             model=self.__MODEL,
+    #             messages=[
+    #                 {"role": "system",
+    #                  "content": "You are a helpful assistant that answers questions about the brewpub. "
+    #                             "Give the user a short greeting and ask them how you can help them."},
+    #             ],
+    #             temperature=0.5,
+    #             max_tokens=50,
+    #             top_p=1,
+    #             frequency_penalty=0,
+    #             presence_penalty=0
+    #         )
+    #         response = response['choices'][0]['message']['content']
+    #         self.__add_to_chat_history('assistant', response)
+    #         return response
+    #
+    #     # after the conversation has started
+    #     else:
+    #         # TODO get the damn order
+    #         self.__add_to_chat_history('user', args[0])
+    #         response = self.__get_the_order_and_just_the_order(args[0])
+    #         return response
+    #         pass
+    #
+    # def __get_the_order_and_just_the_order(self, *args):
+    #     response = openai.ChatCompletion.create(
+    #         model="gpt-3.5-turbo-0613",
+    #         messages=[
+    #                      {"role": "system",
+    #                       "content": "You are an order fulfillment specialist whose job is to get information "
+    #                                  "from users so that an online order can be submitted to a restaurant "
+    #                                  "for fulfillment. The format of the order is as follows:"
+    #                                  "\n###\n{\n"
+    #                                  "            \"user_name\": user's name,\n"
+    #                                  "            \"user_phone\": user's phone number,\n"
+    #                                  "            \"user_email\": user's email address,\n"
+    #                                  "            \"order_items\": {\"first item\": {\"item_qty\": INT}},\n"
+    #                                  "            \"payment_method\": how the user will pay,\n"
+    #                                  "}"
+    #                                  "\n###\n"
+    #                                  "First, ask the user for order information until the order is complete. "
+    #                                  "\nSecond, verify that the items in the order are on the menu. "
+    #                                  f"The menu: \n```\n {self.__db_helper.get_menu()} \n```\n"
+    #                                  "If an order item is not on the menu, tell the user and ask if they "
+    #                                  "would like something else.\nFinally, when the order is complete, "
+    #                                  "read back the order information to the user and ask them to verify "
+    #                                  "the order is correct. Once they verify the correctness of the order, "
+    #                                  "submit it."},
+    #                      {"role": "system", "name": "example_user", "content": "Hello, I'd like to place an order."},
+    #                      {"role": "system", "name": "example_assistant",
+    #                       "content": "Great! I can help you with that. Could you please provide me with your name?"},
+    #                      {"role": "system", "name": "example_user", "content": "John Smith"},
+    #                      {"role": "system", "name": "example_assistant",
+    #                       "content": "Thank you, John Smith. May I also have your phone number in case we need to contact you regarding your order?"},
+    #                      {"role": "system", "name": "example_user", "content": "896-365-1245"},
+    #                      {"role": "system", "name": "example_assistant",
+    #                       "content": "Thank you for providing your phone number, John Smith. Lastly, could you please provide me with your email address?"},
+    #                      {"role": "system", "name": "example_user", "content": "johns@gmail.com"},
+    #                      {"role": "system", "name": "example_assistant",
+    #                       "content": "Thank you, John Smith. Now, let's move on to the order itself. Please provide me with the items you would like to order, along with the quantity of each item."},
+    #                      {"role": "system", "name": "example_user",
+    #                       "content": "I would like to get 2 cheeseburgers, 4 fries, and 2 cokes."},
+    #                      {"role": "system", "name": "example_assistant",
+    #                       "content": "Great! So, if I understand correctly, you would like to order 2 cheeseburgers, 4 fries, and 2 cokes. Is that correct?"},
+    #                      {"role": "system", "name": "example_user", "content": "Yes."},
+    #                      {"role": "system", "name": "example_assistant",
+    #                       "content": "Thank you for confirming. Lastly, could you please let me know your preferred payment method?"},
+    #                      {"role": "system", "name": "example_user", "content": "I'll pay with credit card."},
+    #                      {"role": "system", "name": "example_assistant",
+    #                       "content": "Thank you for providing all the necessary information, John Smith. Here is a summary of your order:\n\n- 2 cheeseburgers\n- 4 fries\n- 2 cokes\n\nYou will be paying with a credit card. Is everything correct so far?"},
+    #                      {"role": "system", "name": "example_user", "content": "Yes."},
+    #                      {"role": "system", "name": "example_assistant",
+    #                       "content": "Great! I will now submit your order. Please wait a moment while I process it."},
+    #                      {"role": "system", "content": "This is the user's order so far: \n```\n"
+    #                                                    f"{self.__order_holder}\n```\n"},
+    #                      {"role": "system", "content": "This following is the current conversation: "}]
+    #                  + [chat for chat in self.__chat_holder] +
+    #                  [{"role": "system", "content": "This is the user's input: "},
+    #                   {"role": "user", "content": f"{args}"},
+    #                   ],
+    #         temperature=0,
+    #         max_tokens=500,
+    #         top_p=1,
+    #         frequency_penalty=0,
+    #         presence_penalty=0
+    #     )
+    #     response = response['choices'][0]['message']['content']
+    #     self.__add_to_chat_history('assistant', response)
+    #     print(response)
+    #     return response
 
     def __order_items_extractor(self, user_prompt: str) -> dict | None:
         order_items = openai.ChatCompletion.create(
@@ -222,7 +364,6 @@ class AIAssistant:
             frequency_penalty=0,
             presence_penalty=0
         )
-        print(order_items)
         order_items = order_items['choices'][0]['message']['content']
         if order_items == "None":
             return None
@@ -312,44 +453,126 @@ class AIAssistant:
 
     def __intent_chooser(self, user_prompt: str) -> str:
         response = openai.ChatCompletion.create(
-            model=self.__MODEL,
+            model="gpt-3.5-turbo-0613",
             messages=[
-                {"role": "system",
-                 "content": "You are a system that assigns an intent to the user's input. "
-                            "You can only pick intents from the options. "
-                            "The intent options are as follows:"
-                            "\n```\n"
-                            "order food,\n"
-                            "get menu,\n"
-                            "question answer,"
-                            "\n```\n"
-                            "Only output the user's intent. If an intent can't be determined, output ```None```."},
-                {"role": "system", "content": "This is the start of the test."},
-                {"role": "user", "content": "how are you today?"},
-                {"role": "assistant", "content": "None"},
-                {"role": "user", "content": "can I take a look at the menu?"},
-                {"role": "assistant", "content": "get menu"},
-                {"role": "user", "content": "When are you guys open?"},
-                {"role": "assistant", "content": "question answer"},
-                {"role": "user", "content": "id like to place an order to be picked up."},
-                {"role": "assistant", "content": "order food"},
-                {"role": "user", "content": "can I get a cheeseburger?"},
-                {"role": "assistant", "content": "order food"},
-                {"role": "user", "content": "What beer do you guys have?"},
-                {"role": "assistant", "content": "get menu"},
-                {"role": "system", "content": "This is the end of the test. "
-                                              "You can now start the actual conversation."},
-                {"role": "system", "content": "This is the user's input: "},
+                {
+                    "role": "system",
+                    "content": "You are a system that assigns an intent to the user's input. You can only pick intents from the intent options. The intent options are as follows:\n###\norder food,\nget menu,\nquestion answer,\n###\nAny user input related to completing a food order should be classified as \"order food\". The food order fields of information are:\n###\n{\n\"order_items\": Items the user is ordering,\n\"user_name\": The user's name,\n\"user_phone\": The user's phone number,\n\"user_email\": The user's email,\n\"payment_method\": The user's payment method,\n}\n###"
+                },
+                {
+                    "role": "user",
+                    "content": "can I take a look at the menu?"
+                },
+                {
+                    "role": "assistant",
+                    "content": "get menu"
+                },
+                {
+                    "role": "user",
+                    "content": "When are you guys open?"
+                },
+                {
+                    "role": "assistant",
+                    "content": "question answer"
+                },
+                {
+                    "role": "user",
+                    "content": "id like to place an order to be picked up."
+                },
+                {
+                    "role": "assistant",
+                    "content": "order food"
+                },
+                {
+                    "role": "user",
+                    "content": "can I get a cheeseburger?"
+                },
+                {
+                    "role": "assistant",
+                    "content": "order food"
+                },
+                {
+                    "role": "user",
+                    "content": "What beer do you guys have?"
+                },
+                {
+                    "role": "assistant",
+                    "content": "get menu"
+                },
+                {
+                    "role": "user",
+                    "content": "jimbob@gmail.com"
+                },
+                {
+                    "role": "assistant",
+                    "content": "order food"
+                },
+                {
+                    "role": "user",
+                    "content": "897-888-1256"
+                },
+                {
+                    "role": "assistant",
+                    "content": "order food"
+                },
+                {
+                    "role": "user",
+                    "content": "I want to pay with cash."
+                },
+                {
+                    "role": "assistant",
+                    "content": "order food"
+                },
+                {
+                    "role": "user",
+                    "content": "Do you guys have grilled cheese?"
+                },
+                {
+                    "role": "assistant",
+                    "content": "get menu"
+                },
+                {
+                    "role": "user",
+                    "content": "when are you guys open?"
+                },
+                {
+                    "role": "assistant",
+                    "content": "question answer"
+                },
+                {
+                    "role": "user",
+                    "content": "Is there a steak on the menu?"
+                },
+                {
+                    "role": "assistant",
+                    "content": "get menu"
+                },
+                {
+                    "role": "user",
+                    "content": "John Smith"
+                },
+                {
+                    "role": "assistant",
+                    "content": "order food"
+                },
+                {
+                    "role": "user",
+                    "content": "my phone number is 888-741-8563"
+                },
+                {
+                    "role": "assistant",
+                    "content": "order food"
+                },
                 {"role": "user", "content": f"{user_prompt}"}
             ],
-            temperature=0.5,
+            temperature=0,
             max_tokens=10,
             top_p=1,
             frequency_penalty=0,
             presence_penalty=0
         )
         response = response['choices'][0]['message']['content']
-        self.__add_to_chat_history('system', f"Current intent: {response}")
+        #self.__add_to_chat_history('system', f"Current intent: {response}")
         return response
 
     def __just_a_nice_response(self, user_prompt: str, convo_intent: str) -> str:
@@ -381,7 +604,7 @@ class AIAssistant:
 
                     {"role": "system",
                      "content": "You are a nice assistant that responds to the user's input. "
-                     "Provide a brief response to the user."},
+                                "Provide a brief response to the user."},
                     {"role": "user", "content": f"{user_prompt}"}
                 ],
                 temperature=0.5,
