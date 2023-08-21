@@ -88,6 +88,7 @@ class AIAssistant:
     def __order_flag_raise(self):
         if None not in self.__order_holder.values():
             self.__order_complete_flag = True
+            #TODO: call function to verify order. If order is verified, submit it. If not, set order items to None and ask for order again.
             self.__submit_order(self.__order_holder)
             self.__reset_order()
         else:
@@ -133,6 +134,7 @@ class AIAssistant:
 
         # Initial welcome message
         if len(self.__chat_holder) == 0:
+            #TODO break this API call out into its own function so that it can be called elsewhere
             response = openai.ChatCompletion.create(
                 model=self.__MODEL,
                 messages=[
@@ -222,99 +224,6 @@ class AIAssistant:
         self.__add_to_chat_history('assistant', output_msg)
         return output_msg
 
-    # def just_get_the_order(self, *args):
-    #     if len(self.__chat_holder) == 0:
-    #         response = openai.ChatCompletion.create(
-    #             model=self.__MODEL,
-    #             messages=[
-    #                 {"role": "system",
-    #                  "content": "You are a helpful assistant that answers questions about the brewpub. "
-    #                             "Give the user a short greeting and ask them how you can help them."},
-    #             ],
-    #             temperature=0.5,
-    #             max_tokens=50,
-    #             top_p=1,
-    #             frequency_penalty=0,
-    #             presence_penalty=0
-    #         )
-    #         response = response['choices'][0]['message']['content']
-    #         self.__add_to_chat_history('assistant', response)
-    #         return response
-    #
-    #     # after the conversation has started
-    #     else:
-    #         # TODO get the damn order
-    #         self.__add_to_chat_history('user', args[0])
-    #         response = self.__get_the_order_and_just_the_order(args[0])
-    #         return response
-    #         pass
-    #
-    # def __get_the_order_and_just_the_order(self, *args):
-    #     response = openai.ChatCompletion.create(
-    #         model="gpt-3.5-turbo-0613",
-    #         messages=[
-    #                      {"role": "system",
-    #                       "content": "You are an order fulfillment specialist whose job is to get information "
-    #                                  "from users so that an online order can be submitted to a restaurant "
-    #                                  "for fulfillment. The format of the order is as follows:"
-    #                                  "\n###\n{\n"
-    #                                  "            \"user_name\": user's name,\n"
-    #                                  "            \"user_phone\": user's phone number,\n"
-    #                                  "            \"user_email\": user's email address,\n"
-    #                                  "            \"order_items\": {\"first item\": {\"item_qty\": INT}},\n"
-    #                                  "            \"payment_method\": how the user will pay,\n"
-    #                                  "}"
-    #                                  "\n###\n"
-    #                                  "First, ask the user for order information until the order is complete. "
-    #                                  "\nSecond, verify that the items in the order are on the menu. "
-    #                                  f"The menu: \n```\n {self.__db_helper.get_menu()} \n```\n"
-    #                                  "If an order item is not on the menu, tell the user and ask if they "
-    #                                  "would like something else.\nFinally, when the order is complete, "
-    #                                  "read back the order information to the user and ask them to verify "
-    #                                  "the order is correct. Once they verify the correctness of the order, "
-    #                                  "submit it."},
-    #                      {"role": "system", "name": "example_user", "content": "Hello, I'd like to place an order."},
-    #                      {"role": "system", "name": "example_assistant",
-    #                       "content": "Great! I can help you with that. Could you please provide me with your name?"},
-    #                      {"role": "system", "name": "example_user", "content": "John Smith"},
-    #                      {"role": "system", "name": "example_assistant",
-    #                       "content": "Thank you, John Smith. May I also have your phone number in case we need to contact you regarding your order?"},
-    #                      {"role": "system", "name": "example_user", "content": "896-365-1245"},
-    #                      {"role": "system", "name": "example_assistant",
-    #                       "content": "Thank you for providing your phone number, John Smith. Lastly, could you please provide me with your email address?"},
-    #                      {"role": "system", "name": "example_user", "content": "johns@gmail.com"},
-    #                      {"role": "system", "name": "example_assistant",
-    #                       "content": "Thank you, John Smith. Now, let's move on to the order itself. Please provide me with the items you would like to order, along with the quantity of each item."},
-    #                      {"role": "system", "name": "example_user",
-    #                       "content": "I would like to get 2 cheeseburgers, 4 fries, and 2 cokes."},
-    #                      {"role": "system", "name": "example_assistant",
-    #                       "content": "Great! So, if I understand correctly, you would like to order 2 cheeseburgers, 4 fries, and 2 cokes. Is that correct?"},
-    #                      {"role": "system", "name": "example_user", "content": "Yes."},
-    #                      {"role": "system", "name": "example_assistant",
-    #                       "content": "Thank you for confirming. Lastly, could you please let me know your preferred payment method?"},
-    #                      {"role": "system", "name": "example_user", "content": "I'll pay with credit card."},
-    #                      {"role": "system", "name": "example_assistant",
-    #                       "content": "Thank you for providing all the necessary information, John Smith. Here is a summary of your order:\n\n- 2 cheeseburgers\n- 4 fries\n- 2 cokes\n\nYou will be paying with a credit card. Is everything correct so far?"},
-    #                      {"role": "system", "name": "example_user", "content": "Yes."},
-    #                      {"role": "system", "name": "example_assistant",
-    #                       "content": "Great! I will now submit your order. Please wait a moment while I process it."},
-    #                      {"role": "system", "content": "This is the user's order so far: \n```\n"
-    #                                                    f"{self.__order_holder}\n```\n"},
-    #                      {"role": "system", "content": "This following is the current conversation: "}]
-    #                  + [chat for chat in self.__chat_holder] +
-    #                  [{"role": "system", "content": "This is the user's input: "},
-    #                   {"role": "user", "content": f"{args}"},
-    #                   ],
-    #         temperature=0,
-    #         max_tokens=500,
-    #         top_p=1,
-    #         frequency_penalty=0,
-    #         presence_penalty=0
-    #     )
-    #     response = response['choices'][0]['message']['content']
-    #     self.__add_to_chat_history('assistant', response)
-    #     print(response)
-    #     return response
 
     def __order_items_extractor(self, user_prompt: str) -> dict | None:
         order_items = openai.ChatCompletion.create(
