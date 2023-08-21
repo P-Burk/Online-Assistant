@@ -9,13 +9,13 @@ from bson.json_util import dumps
 class DBHandler:
 
     def __init__(self):
+        load_dotenv(find_dotenv())
         self.MONGO_USERNAME = os.getenv("MONGODB_USERNAME")
         self.MONGO_PASSWORD = os.getenv("MONGODB_PASSWORD")
         self.MONGO_CONNECTION_STRING = os.getenv("MONGODB_CONNECTION_STRING")
         self.MONGO_CONNECTION_STRING = self.MONGO_CONNECTION_STRING.replace("<username>", self.MONGO_USERNAME)
         self.MONGO_CONNECTION_STRING = self.MONGO_CONNECTION_STRING.replace("<password>", self.MONGO_PASSWORD)
         self.MONGO_DATABASE = "Online-Assistant-DB"
-        load_dotenv(find_dotenv())
         self.__connect()
         self.db = self.client[self.MONGO_DATABASE]
 
