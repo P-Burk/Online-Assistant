@@ -7,7 +7,7 @@ import openai
 from app import DBHelper
 
 load_dotenv(find_dotenv())
-openai.api_key = os.getenv("OPENAI_API_KEY")
+openai.api_key = os.getenv("OTHER_OPENAI_API_KEY")
 FUNCTIONS = [
     {
         "name": "__submit_order",
@@ -49,6 +49,7 @@ class AIAssistant:
             # "order_total": None  # gets added later
         }
         self.__order_complete_flag = False
+        self.__order_verified_flag = False
 
     ##################################################
     ################ HELPER FUNCTIONS ################
@@ -68,10 +69,11 @@ class AIAssistant:
     #     else:
     #         print("Order is not complete.")
 
-    def __submit_order(self, order_to_submit: dict) -> None:
+    def __submit_order(self, order_to_submit: dict) -> str:
         order_to_submit = self.__order_items_total_calculator(order_to_submit)
         order_to_submit['order_total'] = self.__order_total_calculator(order_to_submit)
         self.__db_helper.insert_order(order_to_submit)
+        return "Your order has been submitted."
 
     def __reset_order(self):
         self.__order_holder = {
@@ -89,8 +91,8 @@ class AIAssistant:
         if None not in self.__order_holder.values():
             self.__order_complete_flag = True
             #TODO: call function to verify order. If order is verified, submit it. If not, set order items to None and ask for order again.
-            self.__submit_order(self.__order_holder)
-            self.__reset_order()
+            # self.__submit_order(self.__order_holder)
+            # self.__reset_order()
         else:
             self.__order_complete_flag = False
         print(self.__order_complete_flag)
@@ -157,6 +159,9 @@ class AIAssistant:
             self.__add_to_chat_history('assistant', "Hello, welcome to the brewpub. How can I help you?")
             return response
 
+        elif self.__order_complete_flag and not self.__order_verified_flag:
+            print("This is the next part")
+
         # after the conversation has started
         else:
             # FIXME: change the order of items in the order data structure. Ask for items first, then name, phone, etc.
@@ -218,8 +223,9 @@ class AIAssistant:
         elif self.__order_holder['payment_method'] is None:
             output_msg = "How will you be paying? Cash or card?"
         else:
-            output_msg = self.__just_a_nice_response(args[0], self.__convo_intent)
+            # output_msg = self.__just_a_nice_response(args[0], self.__convo_intent)
             #output_msg = "I'm sorry, I don't understand. Can you rephrase that?"
+            pass
 
         self.__add_to_chat_history('assistant', output_msg)
         return output_msg
@@ -364,114 +370,48 @@ class AIAssistant:
         response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo-0613",
             messages=[
-                {
-                    "role": "system",
-                    "content": "You are a system that assigns an intent to the user's input. You can only pick intents from the intent options. The intent options are as follows:\n###\norder food,\nget menu,\nquestion answer,\n###\nAny user input related to completing a food order should be classified as \"order food\". The food order fields of information are:\n###\n{\n\"order_items\": Items the user is ordering,\n\"user_name\": The user's name,\n\"user_phone\": The user's phone number,\n\"user_email\": The user's email,\n\"payment_method\": The user's payment method,\n}\n###"
-                },
-                {
-                    "role": "user",
-                    "content": "can I take a look at the menu?"
-                },
-                {
-                    "role": "assistant",
-                    "content": "get menu"
-                },
-                {
-                    "role": "user",
-                    "content": "When are you guys open?"
-                },
-                {
-                    "role": "assistant",
-                    "content": "question answer"
-                },
-                {
-                    "role": "user",
-                    "content": "id like to place an order to be picked up."
-                },
-                {
-                    "role": "assistant",
-                    "content": "order food"
-                },
-                {
-                    "role": "user",
-                    "content": "can I get a cheeseburger?"
-                },
-                {
-                    "role": "assistant",
-                    "content": "order food"
-                },
-                {
-                    "role": "user",
-                    "content": "What beer do you guys have?"
-                },
-                {
-                    "role": "assistant",
-                    "content": "get menu"
-                },
-                {
-                    "role": "user",
-                    "content": "jimbob@gmail.com"
-                },
-                {
-                    "role": "assistant",
-                    "content": "order food"
-                },
-                {
-                    "role": "user",
-                    "content": "897-888-1256"
-                },
-                {
-                    "role": "assistant",
-                    "content": "order food"
-                },
-                {
-                    "role": "user",
-                    "content": "I want to pay with cash."
-                },
-                {
-                    "role": "assistant",
-                    "content": "order food"
-                },
-                {
-                    "role": "user",
-                    "content": "Do you guys have grilled cheese?"
-                },
-                {
-                    "role": "assistant",
-                    "content": "get menu"
-                },
-                {
-                    "role": "user",
-                    "content": "when are you guys open?"
-                },
-                {
-                    "role": "assistant",
-                    "content": "question answer"
-                },
-                {
-                    "role": "user",
-                    "content": "Is there a steak on the menu?"
-                },
-                {
-                    "role": "assistant",
-                    "content": "get menu"
-                },
-                {
-                    "role": "user",
-                    "content": "John Smith"
-                },
-                {
-                    "role": "assistant",
-                    "content": "order food"
-                },
-                {
-                    "role": "user",
-                    "content": "my phone number is 888-741-8563"
-                },
-                {
-                    "role": "assistant",
-                    "content": "order food"
-                },
+                {"role": "system",
+                 "content": "You are a system that assigns an intent to the user's input. "
+                            "You can only pick intents from the intent options. "
+                            "The intent options are as follows:\n"
+                            "###\n"
+                            "order food,\n"
+                            "get menu,\n"
+                            "question answer,\n"
+                            "###\n"
+                            "Any user input related to completing a food order should be classified as \"order food\". "
+                            "The food order fields of information are:\n"
+                            "###\n"
+                            "{\n\"order_items\": Items the user is ordering,\n\"user_name\": The user's name,\n"
+                            "\"user_phone\": The user's phone number,\n\"user_email\": The user's email,\n"
+                            "\"payment_method\": The user's payment method,\n}\n"
+                            "###"},
+                {"role": "user", "content": "can I take a look at the menu?"},
+                {"role": "assistant", "content": "get menu"},
+                {"role": "user", "content": "When are you guys open?"},
+                {"role": "assistant", "content": "question answer"},
+                {"role": "user", "content": "id like to place an order to be picked up."},
+                {"role": "assistant", "content": "order food"},
+                {"role": "user", "content": "can I get a cheeseburger?"},
+                {"role": "assistant", "content": "order food"},
+                {"role": "user", "content": "What beer do you guys have?"},
+                {"role": "assistant", "content": "get menu"},
+                {"role": "user", "content": "jimbob@gmail.com"},
+                {"role": "assistant", "content": "order food"},
+                {"role": "user", "content": "897-888-1256"},
+                {"role": "assistant", "content": "order food"},
+                {"role": "user", "content": "I want to pay with cash."},
+                {"role": "assistant", "content": "order food"},
+                {"role": "user", "content": "Do you guys have grilled cheese?"},
+                {"role": "assistant", "content": "get menu"},
+                {"role": "user", "content": "when are you guys open?"},
+                {"role": "assistant", "content": "question answer"},
+                {"role": "user", "content": "Is there a steak on the menu?"},
+                {"role": "assistant", "content": "get menu"},
+                {"role": "user", "content": "John Smith"},
+                {"role": "assistant", "content": "order food"},
+                {"role": "user", "content": "my phone number is 888-741-8563"},
+                {"role": "assistant", "content": "order food"},
                 {"role": "user", "content": f"{user_prompt}"}
             ],
             temperature=0,
@@ -529,6 +469,31 @@ class AIAssistant:
     ##################################################
     ################ ORDER FUNCTIONS ################
     ##################################################
+
+    def __verify_order(self):
+        user_conformation = ""
+        order_items_string = ""
+        for item, details in self.__order_holder['order_items'].items():
+            item_name = item
+            item_qty = details['item_qty']
+            order_items_string = f"-{item_name} x {item_qty}\n"
+
+        output_msg = f"Please confirm your order:\n "\
+                     f"Name: {self.__order_holder['user_name']}\n"\
+                     f"Phone: {self.__order_holder['user_phone']}\n"\
+                     f"Email: {self.__order_holder['user_email']}\n"\
+                     f"Payment Method: {self.__order_holder['payment_method']}\n"\
+                     f"{order_items_string}"\
+                     f"Total: ${self.__order_holder['order_total']}\n"\
+                     f"Is this correct?"
+
+        if user_conformation == "yes":
+            self.__submit_order(self.__order_holder)
+        else:
+            self.__order_complete_flag = False
+            self.__order_holder['order_items'] = None
+        pass
+
     def __user_name_extractor(self, user_prompt: str) -> str | None:
         user_name = response = openai.ChatCompletion.create(
             model=self.__MODEL,
