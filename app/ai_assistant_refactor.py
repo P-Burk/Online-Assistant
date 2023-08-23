@@ -1,6 +1,5 @@
 import json
 import os
-import time
 from typing import List
 from dotenv import load_dotenv, find_dotenv
 import openai
@@ -161,12 +160,11 @@ class AIAssistant:
 
         elif self.__order_complete_flag and not self.__order_verified_flag:
             print("This is the next part")
-            #TODO: add function to check if user verifies or denies order. If verified, submit order. If denied, ask for corrections.
+            # TODO: add function to check if user verifies or denies order. If verified, submit order. If denied,
+            #  ask for corrections.
 
         # after the conversation has started
         else:
-            # FIXME: change the order of items in the order data structure. Ask for items first, then name, phone, etc.
-
             user_input = args[0]
             extractor_list = [
                 self.__order_items_extractor,
@@ -224,9 +222,8 @@ class AIAssistant:
         elif self.__order_holder['payment_method'] is None:
             output_msg = "How will you be paying? Cash or card?"
         else:
-            # output_msg = self.__just_a_nice_response(args[0], self.__convo_intent)
-            #output_msg = "I'm sorry, I don't understand. Can you rephrase that?"
-            pass
+            output_msg = self.__verify_order()
+            return output_msg
 
         self.__add_to_chat_history('assistant', output_msg)
         return output_msg
@@ -474,26 +471,24 @@ class AIAssistant:
     def __verify_order(self):
         user_conformation = ""
         order_items_string = ""
+        self.__order_holder['order_total'] = self.__order_total_calculator(self.__order_holder)
         for item, details in self.__order_holder['order_items'].items():
             item_name = item
             item_qty = details['item_qty']
-            order_items_string = f"-{item_name} x {item_qty}\n"
+            order_items_string += f"  - {item} x {details['item_qty']}\n"
 
-        output_msg = f"Please confirm your order:\n "\
-                     f"Name: {self.__order_holder['user_name']}\n"\
-                     f"Phone: {self.__order_holder['user_phone']}\n"\
-                     f"Email: {self.__order_holder['user_email']}\n"\
-                     f"Payment Method: {self.__order_holder['payment_method']}\n"\
+        output_msg = f"Please confirm your order: \n"\
+                     f"- Name: {self.__order_holder['user_name']}\n"\
+                     f"- Phone: {self.__order_holder['user_phone']}\n"\
+                     f"- Email: {self.__order_holder['user_email']}\n"\
+                     f"- Payment Method: {self.__order_holder['payment_method']}\n"\
+                     f"- Order Items:\n"\
                      f"{order_items_string}"\
-                     f"Total: ${self.__order_holder['order_total']}\n"\
+                     f"- Total: ${self.__order_holder['order_total']:.2f}\n\n"\
                      f"Is this correct?"
 
-        if user_conformation == "yes":
-            self.__submit_order(self.__order_holder)
-        else:
-            self.__order_complete_flag = False
-            self.__order_holder['order_items'] = None
-        pass
+        self.__add_to_chat_history('assistant', output_msg)
+        return output_msg
 
     def __user_name_extractor(self, user_prompt: str) -> str | None:
         user_name = response = openai.ChatCompletion.create(
