@@ -161,6 +161,7 @@ class AIAssistant:
 
         elif self.__order_complete_flag and not self.__order_verified_flag:
             print("This is the next part")
+            #TODO: add function to check if user verifies or denies order. If verified, submit order. If denied, ask for corrections.
 
         # after the conversation has started
         else:
@@ -169,10 +170,10 @@ class AIAssistant:
             user_input = args[0]
             extractor_list = [
                 self.__order_items_extractor,
+                self.__user_email_extractor,
                 self.__user_name_extractor,
                 self.__user_phone_extractor,
-                self.__payment_method_extractor,
-                self.__user_email_extractor,
+                self.__payment_method_extractor
             ]
             # user_input = input("User: ")
             self.__add_to_chat_history('user', user_input)
@@ -239,10 +240,10 @@ class AIAssistant:
                  "content": "You are a system whose purpose is to extract the items from an order and the quantity "
                             "of said items out of a string of text. You will output only the items and their "
                             "quantities and nothing else. The output will be in the following format:"
-                            "\n```\n"
+                            "\n###\n"
                             "{\"ITEM NAME\": {\"item_qty\": INTEGER}, "
                             "\"SECOND ITEM NAME\": {\"item_qty\": INTEGER}}"
-                            "\n```\n"
+                            "\n###\n"
                             "If no food items are ordered, return ```None```."},
                 {"role": "user", "content": "I'd like to order 2 cheeseburgers and 3 fries."},
                 {"role": "assistant",
@@ -629,9 +630,12 @@ class AIAssistant:
                  "content": "You are a system whose purpose is to extract the email from a string of text. "
                             "You will output only the email of the user and nothing else. "
                             "If an email cannot be found, output \"\"\"None\"\"\". \n"
-                            "Common email domain names are:\n@gmail.com,\n@yahoo.com,\n@outlook.com,\n@hotmail.com,"
+                            "Common email endings are:\n"
+                            "###\n"
+                            "@gmail.com,\n@yahoo.com,\n@outlook.com,\n@hotmail.com,"
                             "\n@aol.com,\n@icloud.com,\n@mail.com,\n@protonmail.com,\n@yandex.com,\n@gmx.com,"
-                            "\n@zoho.com"},
+                            "\n@zoho.com\n"
+                            "###"},
                 {"role": "user",
                  "content": "Could you please send me the details at john.doe@example.com? "
                             "I'm looking forward to reviewing the information."},
@@ -662,9 +666,11 @@ class AIAssistant:
                 {"role": "user",
                  "content": "can you please forward that message to fakeemail@outlook.com? I want to save it."},
                 {"role": "assistant", "content": "fakeemail@outlook.com"},
+                {"role": "user", "content": "My name is Sarah Silverman."},
+                {"role": "assistant", "content": "None"},
                 {"role": "user", "content": f"{user_prompt}"}
             ],
-            temperature=0.5,
+            temperature=0,
             max_tokens=48,
             top_p=1,
             frequency_penalty=0,
