@@ -158,10 +158,51 @@ class AIAssistant:
             self.__add_to_chat_history('assistant', "Hello, welcome to the brewpub. How can I help you?")
             return response
 
-        elif self.__order_complete_flag and not self.__order_verified_flag:
-            print("This is the next part")
-            # TODO: add function to check if user verifies or denies order. If verified, submit order. If denied,
-            #  ask for corrections.
+        elif self.__order_complete_flag:
+            order_verification = openai.ChatCompletion.create(
+                model=self.__MODEL,
+                messages=[
+                    {"role": "system",
+                     "content": "You are a system designed to determine the sentiment of the user. "
+                                "The user will tell you if they accept their order or not. "
+                                "You will output only \"yes\" if they accept or \"no\" if they do not accept."},
+                    {"role": "user", "content": "Yes, that order is correct."},
+                    {"role": "assistant", "content": "yes"},
+                    {"role": "user", "content": "Can I change my order?"},
+                    {"role": "assistant", "content": "no"},
+                    {"role": "user", "content": "yes"},
+                    {"role": "assistant", "content": "yes"},
+                    {"role": "user", "content": "no"},
+                    {"role": "assistant", "content": "no"},
+                    {"role": "user", "content": "Actually, can I get"},
+                    {"role": "assistant", "content": "no"},
+                    {"role": "user", "content": "Please submit my order."},
+                    {"role": "assistant", "content": "yes"},
+                    {"role": "user", "content": "I want something else"},
+                    {"role": "assistant", "content": "no"},
+                    {"role": "user", "content": "Can I add..."},
+                    {"role": "assistant", "content": "no"},
+                    {"role": "user", "content": "Can I get..."},
+                    {"role": "assistant", "content": "no"},
+                    {"role": "user", "content": f"{args[0]}"},
+                ],
+                temperature=0.0,
+                max_tokens=5,
+                top_p=1,
+                frequency_penalty=0,
+                presence_penalty=0
+            )
+            order_verification = order_verification['choices'][0]['message']['content']
+            print(f"Order verification: {order_verification}")
+            if order_verification == "yes":
+                output_msg = self.__submit_order(self.__order_holder)
+            else:
+                output_msg = ("Tell me what you would like to change. "
+                              "If changing the food items, please restate all food items in your order.")
+                self.__order_complete_flag = False
+
+            self.__add_to_chat_history('assistant', output_msg)
+            return output_msg
 
         # after the conversation has started
         else:
