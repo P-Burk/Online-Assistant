@@ -1,12 +1,16 @@
 import json
 import os
 from typing import List
-from dotenv import load_dotenv, find_dotenv
+
 import openai
+from dotenv import load_dotenv, find_dotenv
+
 from app import DBHelper
 
 load_dotenv(find_dotenv())
-openai.api_key = os.getenv("OTHER_OPENAI_API_KEY")
+openai.api_key = os.getenv("OPENAI_API_KEY")
+'''
+# leaving this in to use later
 FUNCTIONS = [
     {
         "name": "__submit_order",
@@ -27,6 +31,7 @@ FUNCTIONS = [
         },
     }
 ]
+'''
 
 
 class AIAssistant:
@@ -213,7 +218,6 @@ class AIAssistant:
                 if result is not None:
                     break
 
-
             # classify the user input
             self.__convo_intent = self.__intent_chooser(user_input)
             # print("Convo intent: ", self.__convo_intent)
@@ -255,7 +259,6 @@ class AIAssistant:
 
         self.__add_to_chat_history('assistant', output_msg)
         return output_msg
-
 
     def __order_items_extractor(self, user_prompt: str) -> dict | None:
         order_items = openai.ChatCompletion.create(
@@ -394,7 +397,7 @@ class AIAssistant:
 
     def __intent_chooser(self, user_prompt: str) -> str:
         response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo-0613",
+            model=self.__MODEL,
             messages=[
                 {"role": "system",
                  "content": "You are a system that assigns an intent to the user's input. "
@@ -447,7 +450,7 @@ class AIAssistant:
             presence_penalty=0
         )
         response = response['choices'][0]['message']['content']
-        #self.__add_to_chat_history('system', f"Current intent: {response}")
+        # self.__add_to_chat_history('system', f"Current intent: {response}")
         return response
 
     def __just_a_nice_response(self, user_prompt: str, convo_intent: str) -> str:
@@ -505,14 +508,14 @@ class AIAssistant:
             item_qty = details['item_qty']
             order_items_string += f"  - {item} x {details['item_qty']}\n"
 
-        output_msg = f"Please confirm your order: \n"\
-                     f"- Name: {self.__order_holder['user_name']}\n"\
-                     f"- Phone: {self.__order_holder['user_phone']}\n"\
-                     f"- Email: {self.__order_holder['user_email']}\n"\
-                     f"- Payment Method: {self.__order_holder['payment_method']}\n"\
-                     f"- Order Items:\n"\
-                     f"{order_items_string}"\
-                     f"- Total: ${self.__order_holder['order_total']:.2f}\n\n"\
+        output_msg = f"Please confirm your order: \n" \
+                     f"- Name: {self.__order_holder['user_name']}\n" \
+                     f"- Phone: {self.__order_holder['user_phone']}\n" \
+                     f"- Email: {self.__order_holder['user_email']}\n" \
+                     f"- Payment Method: {self.__order_holder['payment_method']}\n" \
+                     f"- Order Items:\n" \
+                     f"{order_items_string}" \
+                     f"- Total: ${self.__order_holder['order_total']:.2f}\n\n" \
                      f"Is this correct?"
 
         self.__add_to_chat_history('assistant', output_msg)
