@@ -60,18 +60,9 @@ class AIAssistant:
             print(chat)
         print("------------------------------------")
 
-    # def __submit_order(self) -> None:
-    #     if self.__order_complete_flag:
-    #         self.__order_holder['order_total'] = self.__order_total_calculator(self.__order_holder)
-    #         self.__db_helper.insert_order(self.__order_holder)
-    #         self.__reset_order()
-    #     else:
-    #         print("Order is not complete.")
-
     def __submit_order(self, order_to_submit: dict) -> str:
-        order_to_submit = self.__order_items_total_calculator(order_to_submit)
-        order_to_submit['order_total'] = self.__order_total_calculator(order_to_submit)
         self.__db_helper.insert_order(order_to_submit)
+        self.__reset_order()
         return "Your order has been submitted."
 
     def __reset_order(self):
@@ -89,9 +80,6 @@ class AIAssistant:
     def __order_flag_raise(self):
         if None not in self.__order_holder.values():
             self.__order_complete_flag = True
-            #TODO: call function to verify order. If order is verified, submit it. If not, set order items to None and ask for order again.
-            # self.__submit_order(self.__order_holder)
-            # self.__reset_order()
         else:
             self.__order_complete_flag = False
         print(self.__order_complete_flag)
@@ -135,7 +123,6 @@ class AIAssistant:
 
         # Initial welcome message
         if len(self.__chat_holder) == 0:
-            #TODO break this API call out into its own function so that it can be called elsewhere
             response = openai.ChatCompletion.create(
                 model=self.__MODEL,
                 messages=[
@@ -228,8 +215,8 @@ class AIAssistant:
             # classify the user input
             self.__convo_intent = self.__intent_chooser(user_input)
             print("Convo intent: ", self.__convo_intent)
-            # if self.__convo_intent != "order food":
-            #     self.__convo_intent = self.__intent_chooser(user_input)
+
+            # three main three main conversation paths
             match self.__convo_intent:
                 case "order food":
                     output_msg = self.__ask_for_missing_order_info()
@@ -241,10 +228,7 @@ class AIAssistant:
                 case "question answer":
                     question_answer = self.__general_questions_entry_point(user_input)
                     self.__print_chat_history()
-                    return f"PLACE HOLDER: {question_answer}"
-                # case "None":
-                #     self.__print_chat_history()
-                #     return "I'm sorry, I don't understand. Can you rephrase that?"
+                    return question_answer
                 case _:
                     default_response = self.__just_a_nice_response(user_input, self.__convo_intent)
                     self.__print_chat_history()
