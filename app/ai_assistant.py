@@ -77,13 +77,14 @@ class AIAssistant:
         self.__order_flag_raise()
         self.__convo_intent = ""
 
+    # raises the order complete flag if all order fields are filled
     def __order_flag_raise(self):
         if None not in self.__order_holder.values():
             self.__order_complete_flag = True
         else:
             self.__order_complete_flag = False
-        print(self.__order_complete_flag)
 
+    # performs updates to the order, adds messages to chat history, and raises the order complete flag
     def __order_update(self, key, value):
         self.__order_holder[key] = value
         self.__add_to_chat_history('assistant',
@@ -119,6 +120,7 @@ class AIAssistant:
             total += user_order['order_items'][item]["item_total_price"]
         return total
 
+    # this is where all chat with the user flows in
     def bot_entry_point(self, *args):
 
         # Initial welcome message
@@ -180,7 +182,7 @@ class AIAssistant:
                 presence_penalty=0
             )
             order_verification = order_verification['choices'][0]['message']['content']
-            print(f"Order verification: {order_verification}")
+            # print(f"Order verification: {order_verification}")
             if order_verification == "yes":
                 output_msg = self.__submit_order(self.__order_holder)
             else:
@@ -214,7 +216,7 @@ class AIAssistant:
 
             # classify the user input
             self.__convo_intent = self.__intent_chooser(user_input)
-            print("Convo intent: ", self.__convo_intent)
+            # print("Convo intent: ", self.__convo_intent)
 
             # three main three main conversation paths
             match self.__convo_intent:
@@ -224,7 +226,8 @@ class AIAssistant:
                     return output_msg
                 case "get menu":
                     self.__print_chat_history()
-                    return "Here is the menu."
+                    # TODO: add API call to take in the menu from the DB and output a nicely formatted menu
+                    return "Here is the menu...."
                 case "question answer":
                     question_answer = self.__general_questions_entry_point(user_input)
                     self.__print_chat_history()
@@ -721,7 +724,7 @@ class AIAssistant:
             max_tokens=500
         )
         question_classification = question_classification['choices'][0]['message']['content']
-        print(f"General Question Classification: {question_classification}")
+        # print(f"General Question Classification: {question_classification}")
         return question_classification
 
     # Returns a response to a general question.
