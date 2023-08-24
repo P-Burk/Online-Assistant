@@ -4,6 +4,7 @@ from app import ai_assistant as assist
 from fastapi import FastAPI
 
 app = FastAPI()
+chatbot = assist.AIAssistant()
 
 
 @app.get("/")
@@ -17,5 +18,5 @@ def read_item(item_id: int, q: Union[str, None] = None):
 
 @app.get("/get_response/{user_prompt}")
 async def get_response(user_prompt: str):
-    ai_response = assist.get_response(assist.json_to_dict('app/menu.json'), user_prompt)
+    ai_response = chatbot.bot_entry_point(user_prompt)
     return ai_response
